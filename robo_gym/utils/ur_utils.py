@@ -4,8 +4,9 @@ import numpy as np
 import yaml
 import os  
 import copy
+from random import randint
 
-class UR():
+class UR:
     """Universal Robots utilities class.
 
     Attributes:
@@ -57,8 +58,12 @@ class UR():
         # Workspace parameters
         self.ws_r = p["workspace_area"]["r"]
         self.ws_min_r = p["workspace_area"]["min_r"]
+        self.ws_limited = p["workspace_area"]["limited"]
+        self.ws_width = p["workspace_area"]["width"]
+        self.ws_height = p["workspace_area"]["height"]
+        self.ws_depth = p["workspace_area"]["depth"]
+        self.ws_gripper_length = p["workspace_area"]["gripper_length"]
 
-        
     def get_max_joint_positions(self):
 
         return self.max_joint_positions
@@ -100,34 +105,51 @@ class UR():
             np.array: [x,y,z,alpha,theta,gamma] pose.
 
         """
-        pose =  np.zeros(6)
-
+        pose = np.zeros(6)
         singularity_area = True
 
-        # check if generated x,y,z are in singularityarea
-        while singularity_area:
-            # Generate random uniform sample in semisphere taking advantage of the
-            # sampling rule
+        if self.ws_limited:
+            while singularity_area:
+                width = int(self.ws_width * 1000)
+                depth = int(self.ws_depth * 1000)
+                height = int(self.ws_height * 1000)
+                gripper_l = int(self.ws_gripper_length * 1000)
+                x_range = [gripper_l - width/2, width/2 - gripper_l]
+                z_range = [gripper_l, height - gripper_l]
+                y_range = [gripper_l, depth - gripper_l]
 
-            phi = np.random.default_rng().uniform(low= 0.0, high= 2*np.pi)
-            costheta = np.random.default_rng().uniform(low= 0.0, high= 1.0) # [-1.0,1.0] for a sphere
-            u = np.random.default_rng().uniform(low= 0.0, high= 1.0)
+                x, y, z = (randint(x_range[0], x_range[1])/1000,
+                           randint(y_range[0], y_range[1])/1000,
+                           randint(z_range[0], z_range[1])/1000)
 
-            theta = np.arccos(costheta)
-            r = self.ws_r * np.cbrt(u)
+                if (x**2 + y**2) > self.ws_min_r**2:
+                    singularity_area = False
 
-            x = r * np.sin(theta) * np.cos(phi)
-            y = r * np.sin(theta) * np.sin(phi)
-            z = r * np.cos(theta)
+        else:
+            # check if generated x,y,z are in singularityarea
+            while singularity_area:
+                # Generate random uniform sample in semisphere taking advantage of the
+                # sampling rule
 
-            if (x**2 + y**2) > self.ws_min_r**2:
-                singularity_area = False
+                phi = np.random.default_rng().uniform(low= 0.0, high= 2*np.pi)
+                costheta = np.random.default_rng().uniform(low= 0.0, high= 1.0) # [-1.0,1.0] for a sphere
+                u = np.random.default_rng().uniform(low= 0.0, high= 1.0)
 
-        pose[0:3] = [x,y,z]
+                theta = np.arccos(costheta)
+                r = self.ws_r * np.cbrt(u)
+
+                x = r * np.sin(theta) * np.cos(phi)
+                y = r * np.sin(theta) * np.sin(phi)
+                z = r * np.cos(theta)
+
+                if (x**2 + y**2) > self.ws_min_r**2:
+                    singularity_area = False
+
+        pose[0:3] = [x, y, z]
 
         return pose
 
-    def _ros_joint_list_to_ur_joint_list(self,ros_thetas):
+    def _ros_joint_list_to_ur_joint_list(self, ros_thetas):
         """Transform joint angles list from ROS indexing to standard indexing.
 
         Rearrange a list containing the joints values from the joint indexes used
@@ -144,7 +166,7 @@ class UR():
 
         return np.array([ros_thetas[2],ros_thetas[1],ros_thetas[0],ros_thetas[3],ros_thetas[4],ros_thetas[5]])
 
-    def _ur_joint_list_to_ros_joint_list(self,thetas):
+    def _ur_joint_list_to_ros_joint_list(self,  thetas):
         """Transform joint angles list from standard indexing to ROS indexing.
 
         Rearrange a list containing the joints values from the standard joint indexing
