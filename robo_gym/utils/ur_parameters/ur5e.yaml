@@ -20,6 +20,12 @@ workspace_area:
   # Values for the recommended workspace area
   r: 0.750
   min_r: 0.200
+  limited: True
+  # workspace area in m
+  width: 1.22
+  height: 1.24
+  depth: 1.03
+  gripper_length: 0.165
 
 # From https://github.com/ros-industrial/universal_robot
 # Joints limits

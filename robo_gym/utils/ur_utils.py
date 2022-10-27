@@ -5,6 +5,7 @@ from numpy.typing import NDArray
 import yaml
 import os
 import copy
+from random import randint
 
 from robo_gym.utils.manipulator_model import *
 
@@ -41,6 +42,100 @@ class UR(ManipulatorModel):
         return np.array(
             [thetas[2], thetas[1], thetas[0], thetas[3], thetas[4], thetas[5]]
         )
+
+        # Workspace parameters
+        self.ws_r = p["workspace_area"]["r"]
+        self.ws_min_r = p["workspace_area"]["min_r"]
+        self.ws_limited = p["workspace_area"]["limited"]
+        self.ws_width = p["workspace_area"]["width"]
+        self.ws_height = p["workspace_area"]["height"]
+        self.ws_depth = p["workspace_area"]["depth"]
+        self.ws_gripper_length = p["workspace_area"]["gripper_length"]
+
+    def get_max_joint_positions(self):
+
+        return self.max_joint_positions
+
+    def get_min_joint_positions(self):
+
+        return self.min_joint_positions
+
+    def get_max_joint_velocities(self):
+
+        return self.max_joint_velocities
+
+    def get_min_joint_velocities(self):
+
+        return self.min_joint_velocities
+
+    def normalize_joint_values(self, joints):
+        """Normalize joint position values
+        
+        Args:
+            joints (np.array): Joint position values
+
+        Returns:
+            norm_joints (np.array): Joint position values normalized between [-1 , 1]
+        """
+        
+        joints = copy.deepcopy(joints)
+        for i in range(len(joints)):
+            if joints[i] <= 0:
+                joints[i] = joints[i]/abs(self.min_joint_positions[i])
+            else:
+                joints[i] = joints[i]/abs(self.max_joint_positions[i])
+        return joints
+
+    def get_random_workspace_pose(self):
+        """Get pose of a random point in the robot workspace.
+
+        Returns:
+            np.array: [x,y,z,alpha,theta,gamma] pose.
+
+        """
+        pose = np.zeros(6)
+        singularity_area = True
+
+        if self.ws_limited:
+            while singularity_area:
+                width = int(self.ws_width * 1000)
+                depth = int(self.ws_depth * 1000)
+                height = int(self.ws_height * 1000)
+                gripper_l = int(self.ws_gripper_length * 1000)
+                x_range = [gripper_l - width/2, width/2 - gripper_l]
+                z_range = [gripper_l, height - gripper_l]
+                y_range = [gripper_l, depth - gripper_l]
+
+                x, y, z = (randint(x_range[0], x_range[1])/1000,
+                           randint(y_range[0], y_range[1])/1000,
+                           randint(z_range[0], z_range[1])/1000)
+
+                if (x**2 + y**2) > self.ws_min_r**2:
+                    singularity_area = False
+
+        else:
+            # check if generated x,y,z are in singularityarea
+            while singularity_area:
+                # Generate random uniform sample in semisphere taking advantage of the
+                # sampling rule
+
+                phi = np.random.default_rng().uniform(low= 0.0, high= 2*np.pi)
+                costheta = np.random.default_rng().uniform(low= 0.0, high= 1.0) # [-1.0,1.0] for a sphere
+                u = np.random.default_rng().uniform(low= 0.0, high= 1.0)
+
+                theta = np.arccos(costheta)
+                r = self.ws_r * np.cbrt(u)
+
+                x = r * np.sin(theta) * np.cos(phi)
+                y = r * np.sin(theta) * np.sin(phi)
+                z = r * np.cos(theta)
+
+                if (x**2 + y**2) > self.ws_min_r**2:
+                    singularity_area = False
+
+        pose[0:3] = [x, y, z]
+
+        return pose
 
     def reorder_joints_from_rs(self, ros_thetas):
         """Transform joint angles list from ROS indexing to standard indexing.
