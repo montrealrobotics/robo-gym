@@ -24,7 +24,7 @@ workspace_area:
   # workspace area in m
   width: 1.22
   height: 1.24
-  depth: 1.03
+  depth: 0.94
   gripper_length: 0.165
 
 # From https://github.com/ros-industrial/universal_robot

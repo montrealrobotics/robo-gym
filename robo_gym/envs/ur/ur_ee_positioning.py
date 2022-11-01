@@ -337,13 +337,14 @@ class EndEffectorPositioningUR(URBaseEnv):
         rs_state.update(self.joint_positions)
 
         # Set target End Effector pose
-        if ee_target_pose:
-            assert len(ee_target_pose) == 6
+        if self.ee_target_pose:
+            assert len(self.ee_target_pose) == 6
         else:
-            ee_target_pose = self._get_target_pose()
+            self.ee_target_pose = self._get_target_pose()
 
         # Set initial state of the Robot Server
-        state_msg = self._set_initial_robot_server_state(rs_state, ee_target_pose)
+
+        state_msg = self._set_initial_robot_server_state(rs_state, self.ee_target_pose)
 
         if not self.client.set_state_msg(state_msg):
             raise RobotServerError("set_state")
