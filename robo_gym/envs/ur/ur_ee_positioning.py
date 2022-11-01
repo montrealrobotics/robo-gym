@@ -76,8 +76,8 @@ class EndEffectorPositioningUR(URBaseEnv):
     
     def _set_initial_robot_server_state(self, rs_state, ee_target_pose) -> robot_server_pb2.State:
         string_params = {"object_0_function": "fixed_position"}
-        float_params = {"object_0_x": ee_target_pose[0], 
-                        "object_0_y": ee_target_pose[1], 
+        float_params = {"object_0_x": ee_target_pose[0],
+                        "object_0_y": ee_target_pose[1],
                         "object_0_z": ee_target_pose[2]}
         state = {}
 
@@ -225,13 +225,14 @@ class EndEffectorPositioningUR(URBaseEnv):
         rs_state.update(self.joint_positions)
 
         # Set target End Effector pose
-        if ee_target_pose:
-            assert len(ee_target_pose) == 6
+        if self.ee_target_pose:
+            assert len(self.ee_target_pose) == 6
         else:
-            ee_target_pose = self._get_target_pose()
+            self.ee_target_pose = self._get_target_pose()
 
         # Set initial state of the Robot Server
-        state_msg = self._set_initial_robot_server_state(rs_state, ee_target_pose)
+
+        state_msg = self._set_initial_robot_server_state(rs_state, self.ee_target_pose)
 
         if not self.client.set_state_msg(state_msg):
             raise RobotServerError("set_state")
@@ -357,7 +358,7 @@ class EndEffectorPositioningURSim(EndEffectorPositioningUR, Simulation):
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.1 \
         action_cycle_rate:=10 \
-        rviz_gui:=false \
+        rviz_gui:=true \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1object \

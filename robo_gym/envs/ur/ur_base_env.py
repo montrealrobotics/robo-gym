@@ -46,6 +46,7 @@ class URBaseEnv(gym.Env):
         self.fix_wrist_1 = fix_wrist_1
         self.fix_wrist_2 = fix_wrist_2
         self.fix_wrist_3 = fix_wrist_3
+        self.ee_target_pose = []
 
         self.observation_space = self._get_observation_space()
         self.action_space = self._get_action_space()
@@ -261,6 +262,15 @@ class URBaseEnv(gym.Env):
 
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
+
+        rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
+        rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
+        rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
+        rs_state['object_0_to_ref_rotation_x'] = 0
+        rs_state['object_0_to_ref_rotation_y'] = 0
+        rs_state['object_0_to_ref_rotation_z'] = 0
+        rs_state['object_0_to_ref_rotation_w'] = 1
+
         if not len(keys) == len(rs_state.keys()):
             raise InvalidStateError("Robot Server state keys to not match. Different lengths.")
 
