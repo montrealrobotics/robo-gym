@@ -92,6 +92,11 @@ If you prefer, you can do a minimal install of the packaged version directly fro
 pip install robo-gym
 ```
 
+If you are using the UR arms, you will also require the ur_kinematics package, clone this to your workspace:
+```
+git clone https://github.com/L-eonor/ur_kinematics.git
+```
+
 <!-- omit in toc -->
 ## Robot Server Side
 **Requirements:** Ubuntu 20.04 (recommended) or 18.04.
@@ -99,7 +104,7 @@ pip install robo-gym
 The Robot Server Side can be installed on the same machine running the Environment Side
 and/or on other multiple machines.
 
-Install [robo-gym-robot-servers](https://github.com/jr-robotics/robo-gym-robot-servers)
+Install [robo-gym-robot-servers](https://github.com/montrealrobotics/robo-gym-robot-servers)
 following the instructions in the repository's README.
 
 # How to use
