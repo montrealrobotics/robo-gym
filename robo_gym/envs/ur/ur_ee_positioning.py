@@ -223,6 +223,7 @@ class EndEffectorPositioningUR(URBaseEnv):
 
         # Update joint positions in rs_state
         rs_state.update(self.joint_positions)
+        self.ee_target_pose = ee_target_pose
 
         # Set target End Effector pose
         if self.ee_target_pose:
