@@ -26,6 +26,8 @@ workspace_area:
   height: 1.24
   depth: 0.94
   gripper_length: 0.165
+  # workspace origin offset in m
+  origin_offset: [0, 0, 0]
 
 # From https://github.com/ros-industrial/universal_robot
 # Joints limits

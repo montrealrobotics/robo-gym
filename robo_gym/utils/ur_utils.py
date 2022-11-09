@@ -5,7 +5,10 @@ from numpy.typing import NDArray
 import yaml
 import os
 import copy
+import math
 from random import randint
+from kinematics_utils import kinematics
+
 
 from robo_gym.utils.manipulator_model import *
 
@@ -51,6 +54,10 @@ class UR(ManipulatorModel):
         self.ws_height = p["workspace_area"]["height"]
         self.ws_depth = p["workspace_area"]["depth"]
         self.ws_gripper_length = p["workspace_area"]["gripper_length"]
+        self.x_range = [0, 0]
+        self.y_range = [0, 0]
+        self.z_range = [0, 0]
+        self.origin_offset = p["workspace_area"]["origin_offset"]
 
     def get_max_joint_positions(self):
 
@@ -102,19 +109,26 @@ class UR(ManipulatorModel):
                 depth = int(self.ws_depth * 1000)
                 height = int(self.ws_height * 1000)
                 gripper_l = int(self.ws_gripper_length * 1000)
-                x_range = [gripper_l - width/2, width/2 - gripper_l]
-                z_range = [gripper_l, height - gripper_l]
-                y_range = [gripper_l, depth - gripper_l]
+                self.y_range = [self.origin_offset[0] + int(gripper_l - width/2), self.origin_offset[0] + int(width/2 - gripper_l)]
 
-                x, y, z = (randint(x_range[0], x_range[1])/1000,
-                           randint(y_range[0], y_range[1])/1000,
-                           randint(z_range[0], z_range[1])/1000)
+                z_min = self.origin_offset[2] if self.origin_offset[2] > gripper_l else gripper_l
+                self.z_range = [z_min, self.origin_offset[2] + height - gripper_l]
+                x_min = self.origin_offset[0] if self.origin_offset[0] > gripper_l else gripper_l
+                self.x_range = [x_min, self.origin_offset[0] + depth - gripper_l]
 
-                if (x**2 + y**2) > self.ws_min_r**2:
+                x, y, z = (randint(self.x_range[0], self.x_range[1])/1000,
+                           randint(self.y_range[0], self.y_range[1])/1000,
+                           randint(self.z_range[0], self.z_range[1])/1000)
+                length = math.sqrt(x**2 + y**2 + z**2)
+
+                if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
                     singularity_area = False
+            self.x_range = [self.x_range[0] / 1000, self.x_range[1] / 1000]
+            self.y_range = [self.y_range[0] / 1000, self.y_range[1] / 1000]
+            self.z_range = [self.z_range[0] / 1000, self.z_range[1] / 1000]
 
         else:
-            # check if generated x,y,z are in singularityarea
+            # check if generated x,y,z are in singularity area
             while singularity_area:
                 # Generate random uniform sample in semisphere taking advantage of the
                 # sampling rule
@@ -170,3 +184,14 @@ class UR(ManipulatorModel):
         """
 
         return self._swap_base_and_elbow(thetas)
+
+    def check_ee_pose_in_workspace(self, joints):
+        kin_model = kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
+        pose, orientation = kin_model.forward_kin(joints)
+        if self.x_range[0] <= pose[0] <= self.x_range[1] and self.y_range[0] <= pose[1] <= \
+                self.y_range[1] and self.z_range[0] <= pose[2] <= self.z_range[1] and (pose[0] ** 2 + pose[1] ** 2) > \
+                self.ws_min_r ** 2:
+            # all good
+            return True
+        else:
+            return False

@@ -237,15 +237,26 @@ class URBaseEnv(gym.Env):
 
         self.elapsed_steps += 1
 
-        # Check if the action is contained in the action space
-        if not self.action_space.contains(action):
-            raise InvalidActionError()
+        while not valid_pose:
+            action = action.astype(np.float32)
 
-        # Add missing joints which were fixed at initialization
-        action = self.add_fixed_joints(action)
+            self.elapsed_steps += 1
 
-        # Convert environment action to robot server action
-        rs_action = self.env_action_to_rs_action(action)
+            # Check if the action is contained in the action space
+            if not self.action_space.contains(action):
+                raise InvalidActionError()
+
+            # Add missing joints which were fixed at initialization
+
+            action = self.add_fixed_joints(action)
+            rs_action = self.env_action_to_rs_action(action)
+            action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
+
+            valid_pose = self.ur.check_ee_pose_in_workspace(action_diff_order)
+            if not valid_pose:
+                action = self.action_space.sample()
+
+            # Convert environment action to robot server action
 
         # Send action to Robot Server and get state
         rs_state = self.client.send_action_get_state(rs_action.tolist()).state_dict
@@ -474,6 +485,7 @@ class EmptyEnvironmentURSim(URBaseEnv, Simulation):
         URBaseEnv.__init__(
             self, rs_address=self.robot_server_ip, ur_model=ur_model, **kwargs
         )
+
 
 
 class EmptyEnvironmentURRob(URBaseEnv):
