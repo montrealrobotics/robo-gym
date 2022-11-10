@@ -87,7 +87,7 @@ pip install robo-gym
 
 If you are using the UR arms, you will also require the ur_kinematics package, clone this to your workspace:
 ```
-git clone https://github.com/L-eonor/ur_kinematics.git
+git clone https://github.com/montrealrobotics/ur_kinematics.git
 ```
 
 <!-- omit in toc -->
