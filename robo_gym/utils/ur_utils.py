@@ -7,7 +7,7 @@ import os
 import copy
 import math
 from random import randint
-from kinematics_utils import kinematics
+from ur_kinematics_utils import kinematics
 
 
 from robo_gym.utils.manipulator_model import *
