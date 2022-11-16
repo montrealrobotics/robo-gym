@@ -61,7 +61,8 @@ RUN pip install pytest pytest-rerunfailures
 ## Download robo-gym 
 WORKDIR /root/
 RUN git clone -b dev https://github.com/montrealrobotics/robo-gym.git
-RUN pip install -r robo-gym/cleanrl/requirements.txt 
+RUN git clone -b robo-gym https://github.com/montrealrobotics/cleanrl.git
+RUN pip install -r cleanrl/requirements/requirements.txt 
 
 
 ## If you are on RTX 30 devices 
