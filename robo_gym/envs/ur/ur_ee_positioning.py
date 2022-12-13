@@ -278,9 +278,6 @@ class EndEffectorPositioningUR(URBaseEnv):
                     joint_positions.append(self.rs_state[position])
                 joint_positions = np.array(joint_positions)
                 self.last_position = joint_positions
-
-
-        
         return state, reward, done, info
    
 
@@ -294,7 +291,7 @@ class EndEffectorPositioningUR(URBaseEnv):
         # Reward weight for collision (ground, table or self)
         c_w = -1
         # Reward weight according to the distance to the goal
-        d_w = -0.005
+        d_w = 0.5
 
         # Calculate distance to the target
         target_coord = np.array([rs_state['object_0_to_ref_translation_x'], rs_state['object_0_to_ref_translation_y'], rs_state['object_0_to_ref_translation_z']])
@@ -302,7 +299,12 @@ class EndEffectorPositioningUR(URBaseEnv):
         euclidean_dist_3d = np.linalg.norm(target_coord - ee_coord)
 
         # Reward base
-        reward += d_w * euclidean_dist_3d
+        reward += np.exp(-d_w*euclidean_dist_3d) # b/w 0 and 1 (positive reinforcement )
+        
+
+        ## Out of Safety Constraint 
+        if not self.check_safety_conditions(action):
+            reward += -1  
 
         if euclidean_dist_3d <= DISTANCE_THRESHOLD:
             reward = g_w * 1
@@ -322,6 +324,24 @@ class EndEffectorPositioningUR(URBaseEnv):
             info['target_coord'] = target_coord
         
         return reward, done, info
+
+
+    def check_safety_conditions(self, action) -> bool: 
+        action = action.astype(np.float32)
+
+        self.elapsed_steps += 1
+
+        # Check if the action is contained in the action space
+        if not self.action_space.contains(action):
+            raise InvalidActionError()
+
+        # Add missing joints which were fixed at initialization
+
+        action = self.add_fixed_joints(action)
+        rs_action = self.env_action_to_rs_action(action)
+        action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
+        
+        return self.ur.check_ee_pose_in_workspace(action_diff_order)
 
     def _get_target_pose(self) -> np.ndarray:
         """Generate target End Effector pose.
