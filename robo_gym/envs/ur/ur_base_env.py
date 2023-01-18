@@ -42,7 +42,7 @@ class URBaseEnv(gym.Env):
     """
 
     real_robot = False
-    max_episode_steps = 300
+    max_episode_steps = 100
 
     def __init__(
         self,
