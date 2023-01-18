@@ -32,7 +32,7 @@ class URBaseEnv(gym.Env):
 
     """
     real_robot = False
-    max_episode_steps = 300
+    max_episode_steps = 100
 
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_wrist_1=False, fix_wrist_2=False, fix_wrist_3=True, ur_model='ur5', rs_state_to_info=True, **kwargs):
         self.ur = ur_utils.UR(model=ur_model)
@@ -213,6 +213,9 @@ class URBaseEnv(gym.Env):
         if self.rs_state_to_info: info['rs_state'] = self.rs_state
 
         return state, reward, done, info
+
+
+
     # def step(self, action) -> Tuple[np.array, float, bool, dict]:
     #     if type(action) == list: action = np.array(action)
     #     valid_pose = False

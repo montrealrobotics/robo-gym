@@ -287,11 +287,11 @@ class EndEffectorPositioningUR(URBaseEnv):
         info = {}
 
         # Reward weight for reaching the goal position
-        g_w = 2
+        g_w = 1000 
         # Reward weight for collision (ground, table or self)
         c_w = -1
         # Reward weight according to the distance to the goal
-        d_w = 0.5
+        d_w = 10
 
         # Calculate distance to the target
         target_coord = np.array([rs_state['object_0_to_ref_translation_x'], rs_state['object_0_to_ref_translation_y'], rs_state['object_0_to_ref_translation_z']])
@@ -304,6 +304,7 @@ class EndEffectorPositioningUR(URBaseEnv):
 
         ## Out of Safety Constraint 
         if not self.check_safety_conditions(action):
+            #print("Safety Constraint Violated")
             reward += -1  
 
         if euclidean_dist_3d <= DISTANCE_THRESHOLD:
@@ -312,11 +313,11 @@ class EndEffectorPositioningUR(URBaseEnv):
             info['final_status'] = 'success'
             info['target_coord'] = target_coord
 
-        if rs_state['in_collision']:
-            reward = c_w * 1
-            done = True
-            info['final_status'] = 'collision'
-            info['target_coord'] = target_coord
+        #if rs_state['in_collision']:
+        #    reward = c_w * 1
+        #    done = True
+        #    info['final_status'] = 'collision'
+        #    info['target_coord'] = target_coord
 
         elif self.elapsed_steps >= self.max_episode_steps:
             done = True
@@ -329,11 +330,11 @@ class EndEffectorPositioningUR(URBaseEnv):
     def check_safety_conditions(self, action) -> bool: 
         action = action.astype(np.float32)
 
-        self.elapsed_steps += 1
+        #self.elapsed_steps += 1
 
         # Check if the action is contained in the action space
-        if not self.action_space.contains(action):
-            raise InvalidActionError()
+        #if not self.action_space.contains(action):
+        #    raise InvalidActionError()
 
         # Add missing joints which were fixed at initialization
 
