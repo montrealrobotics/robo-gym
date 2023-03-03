@@ -235,12 +235,12 @@ class URBaseEnv(gym.Env):
 
         action = action.astype(np.float32)
 
+        valid_pose = False
+        rs_action = []
         self.elapsed_steps += 1
 
         while not valid_pose:
             action = action.astype(np.float32)
-
-            self.elapsed_steps += 1
 
             # Check if the action is contained in the action space
             if not self.action_space.contains(action):
@@ -250,6 +250,9 @@ class URBaseEnv(gym.Env):
 
             action = self.add_fixed_joints(action)
             rs_action = self.env_action_to_rs_action(action)
+            if not self.ur.ws_limited:
+                valid_pose = True
+                break
             action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
 
             valid_pose = self.ur.check_ee_pose_in_workspace(action_diff_order)

@@ -34,6 +34,7 @@ from robo_gym.envs.ur.ur_ee_pos import (
 )
 from robo_gym.envs.ur.ur_isaac_reach import IsaacReachURSim, IsaacReachURRob
 
+# Panda
 from robo_gym.envs.panda.panda_base import (
     EmptyEnvironmentPandaSim,
     EmptyEnvironmentPandaRob,
@@ -43,3 +44,18 @@ from robo_gym.envs.panda.panda_ee_pos import (
     EndEffectorPositioningPandaRob,
 )
 from robo_gym.envs.panda.panda_isaac_reach import IsaacReachPandaSim, IsaacReachPandaRob
+
+# Interbotix Arms
+from robo_gym.envs.interbotix_arms.interbotix_arm_base_env import (
+    EmptyEnvironmentInterbotixASim,
+    EmptyEnvironmentInterbotixARob
+)
+from robo_gym.envs.interbotix_arms.interbotix_arm_ee_positioning import (
+    EndEffectorPositioningInterbotixASim,
+    EndEffectorPositioningInterbotixARob
+)
+from robo_gym.envs.interbotix_arms.interbotix_arm_avoidance_basic import (
+    BasicAvoidanceInterbotixASim,
+    BasicAvoidanceInterbotixARob
+)
+
