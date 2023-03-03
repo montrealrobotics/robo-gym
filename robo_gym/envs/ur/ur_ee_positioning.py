@@ -76,8 +76,8 @@ class EndEffectorPositioningUR(URBaseEnv):
     
     def _set_initial_robot_server_state(self, rs_state, ee_target_pose) -> robot_server_pb2.State:
         string_params = {"object_0_function": "fixed_position"}
-        float_params = {"object_0_x": ee_target_pose[0], 
-                        "object_0_y": ee_target_pose[1], 
+        float_params = {"object_0_x": ee_target_pose[0],
+                        "object_0_y": ee_target_pose[1],
                         "object_0_z": ee_target_pose[2]}
         state = {}
 
@@ -142,8 +142,6 @@ class EndEffectorPositioningUR(URBaseEnv):
         for velocity in joint_velocities_keys:
             joint_velocities.append(rs_state[velocity])
         joint_velocities = np.array(joint_velocities)
-
-
 
         # Compose environment state
         state = np.concatenate((target_polar, joint_positions, joint_velocities, target_coord, ee_to_ref_frame_translation, self.previous_action))
@@ -223,15 +221,17 @@ class EndEffectorPositioningUR(URBaseEnv):
 
         # Update joint positions in rs_state
         rs_state.update(self.joint_positions)
+        self.ee_target_pose = ee_target_pose
 
         # Set target End Effector pose
-        if ee_target_pose:
-            assert len(ee_target_pose) == 6
+        if self.ee_target_pose:
+            assert len(self.ee_target_pose) == 6
         else:
-            ee_target_pose = self._get_target_pose()
+            self.ee_target_pose = self._get_target_pose()
 
         # Set initial state of the Robot Server
-        state_msg = self._set_initial_robot_server_state(rs_state, ee_target_pose)
+
+        state_msg = self._set_initial_robot_server_state(rs_state, self.ee_target_pose)
 
         if not self.client.set_state_msg(state_msg):
             raise RobotServerError("set_state")
@@ -276,9 +276,6 @@ class EndEffectorPositioningUR(URBaseEnv):
                     joint_positions.append(self.rs_state[position])
                 joint_positions = np.array(joint_positions)
                 self.last_position = joint_positions
-
-
-        
         return state, reward, done, info
    
 
@@ -288,11 +285,11 @@ class EndEffectorPositioningUR(URBaseEnv):
         info = {}
 
         # Reward weight for reaching the goal position
-        g_w = 2
+        g_w = 1000 
         # Reward weight for collision (ground, table or self)
         c_w = -1
         # Reward weight according to the distance to the goal
-        d_w = -0.005
+        d_w = 10
 
         # Calculate distance to the target
         target_coord = np.array([rs_state['object_0_to_ref_translation_x'], rs_state['object_0_to_ref_translation_y'], rs_state['object_0_to_ref_translation_z']])
@@ -300,7 +297,11 @@ class EndEffectorPositioningUR(URBaseEnv):
         euclidean_dist_3d = np.linalg.norm(target_coord - ee_coord)
 
         # Reward base
-        reward += d_w * euclidean_dist_3d
+        reward += np.exp(-d_w*euclidean_dist_3d) # b/w 0 and 1 (positive reinforcement )
+
+        ## Out of Safety Constraint 
+        if not self.check_safety_conditions(action):
+            reward += -1  
 
         if euclidean_dist_3d <= DISTANCE_THRESHOLD:
             reward = g_w * 1
@@ -308,11 +309,11 @@ class EndEffectorPositioningUR(URBaseEnv):
             info['final_status'] = 'success'
             info['target_coord'] = target_coord
 
-        if rs_state['in_collision']:
-            reward = c_w * 1
-            done = True
-            info['final_status'] = 'collision'
-            info['target_coord'] = target_coord
+        #if rs_state['in_collision']:
+        #    reward = c_w * 1
+        #    done = True
+        #    info['final_status'] = 'collision'
+        #    info['target_coord'] = target_coord
 
         elif self.elapsed_steps >= self.max_episode_steps:
             done = True
@@ -320,6 +321,17 @@ class EndEffectorPositioningUR(URBaseEnv):
             info['target_coord'] = target_coord
         
         return reward, done, info
+
+
+    def check_safety_conditions(self, action) -> bool: 
+        action = action.astype(np.float32)
+
+        # Add missing joints which were fixed at initialization
+        action = self.add_fixed_joints(action)
+        rs_action = self.env_action_to_rs_action(action)
+        action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
+        
+        return self.ur.check_ee_pose_in_workspace(action_diff_order)
 
     def _get_target_pose(self) -> np.ndarray:
         """Generate target End Effector pose.
@@ -357,7 +369,7 @@ class EndEffectorPositioningURSim(EndEffectorPositioningUR, Simulation):
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.1 \
         action_cycle_rate:=10 \
-        rviz_gui:=false \
+        rviz_gui:=true \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1object \

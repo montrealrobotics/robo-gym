@@ -11,3 +11,9 @@ from robo_gym.envs.ur.ur_ee_positioning import EndEffectorPositioningURSim, EndE
 from robo_gym.envs.ur.ur_avoidance_basic import BasicAvoidanceURSim, BasicAvoidanceURRob
 from robo_gym.envs.ur.ur_avoidance_raad import AvoidanceRaad2022URSim, AvoidanceRaad2022URRob
 from robo_gym.envs.ur.ur_avoidance_raad import AvoidanceRaad2022TestURSim, AvoidanceRaad2022TestURRob
+
+# Interbotix Arms
+from robo_gym.envs.interbotix_arms.interbotix_arm_base_env import EmptyEnvironmentInterbotixASim, EmptyEnvironmentInterbotixARob
+from robo_gym.envs.interbotix_arms.interbotix_arm_ee_positioning import EndEffectorPositioningInterbotixASim, EndEffectorPositioningInterbotixARob
+from robo_gym.envs.interbotix_arms.interbotix_arm_avoidance_basic import BasicAvoidanceInterbotixASim, BasicAvoidanceInterbotixARob
+

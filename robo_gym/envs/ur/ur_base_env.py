@@ -12,6 +12,7 @@ from robo_gym.envs.simulation_wrapper import Simulation
 # base, shoulder, elbow, wrist_1, wrist_2, wrist_3
 JOINT_POSITIONS = [0.0, -2.5, 1.5, 0.0, -1.4, 0.0]
 
+
 class URBaseEnv(gym.Env):
     """Universal Robots UR base environment.
 
@@ -32,7 +33,7 @@ class URBaseEnv(gym.Env):
 
     """
     real_robot = False
-    max_episode_steps = 300
+    max_episode_steps = 100
 
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_wrist_1=False, fix_wrist_2=False, fix_wrist_3=True, ur_model='ur5', rs_state_to_info=True, **kwargs):
         self.ur = ur_utils.UR(model=ur_model)
@@ -46,6 +47,7 @@ class URBaseEnv(gym.Env):
         self.fix_wrist_1 = fix_wrist_1
         self.fix_wrist_2 = fix_wrist_2
         self.fix_wrist_3 = fix_wrist_3
+        self.ee_target_pose = []
 
         self.observation_space = self._get_observation_space()
         self.action_space = self._get_action_space()
@@ -59,7 +61,6 @@ class URBaseEnv(gym.Env):
         else:
             print("WARNING: No IP and Port passed. Simulation will not be started")
             print("WARNING: Use this only to get environment shape")
-
 
     def _set_initial_robot_server_state(self, rs_state) -> robot_server_pb2.State:
         string_params = {}
@@ -139,8 +140,7 @@ class URBaseEnv(gym.Env):
         elif self.elapsed_steps >= self.max_episode_steps:
             done = True
             info['final_status'] = 'success'
-            
-        
+
         return 0, done, info
 
     def add_fixed_joints(self, action) -> np.ndarray:
@@ -174,8 +174,8 @@ class URBaseEnv(gym.Env):
         # Convert action indexing from ur to ros
         rs_action = self.ur._ur_joint_list_to_ros_joint_list(rs_action)
 
-        return rs_action        
-
+        return rs_action 
+               
     def step(self, action) -> Tuple[np.array, float, bool, dict]:
         if type(action) == list: action = np.array(action)
 
@@ -214,12 +214,12 @@ class URBaseEnv(gym.Env):
 
         return state, reward, done, info
 
+
     def get_rs_state(self):
         return self.rs_state
 
     def render():
         pass
-    
 
     def get_robot_server_composition(self) -> list:
         rs_state_keys = [
@@ -249,8 +249,6 @@ class URBaseEnv(gym.Env):
         ]
         return rs_state_keys
 
-
-
     def _get_robot_server_state_len(self) -> int:
         """Get length of the Robot Server state.
 
@@ -261,14 +259,21 @@ class URBaseEnv(gym.Env):
 
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
+
+        rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
+        rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
+        rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
+        rs_state['object_0_to_ref_rotation_x'] = 0
+        rs_state['object_0_to_ref_rotation_y'] = 0
+        rs_state['object_0_to_ref_rotation_z'] = 0
+        rs_state['object_0_to_ref_rotation_w'] = 1
+
         if not len(keys) == len(rs_state.keys()):
             raise InvalidStateError("Robot Server state keys to not match. Different lengths.")
 
-        
         for key in keys:
             if key not in rs_state.keys():
                 raise InvalidStateError("Robot Server state keys to not match")
-
 
     def _set_joint_positions(self, joint_positions) -> None:
         """Set desired robot joint positions with standard indexing."""
@@ -287,16 +292,11 @@ class URBaseEnv(gym.Env):
 
     def _get_joint_positions_as_array(self) -> np.ndarray:
         """Get robot joint positions with standard indexing."""
-        joint_positions = []
-        joint_positions.append(self.joint_positions['base_joint_position'])
-        joint_positions.append(self.joint_positions['shoulder_joint_position'])
-        joint_positions.append(self.joint_positions['elbow_joint_position'])
-        joint_positions.append(self.joint_positions['wrist_1_joint_position'])
-        joint_positions.append(self.joint_positions['wrist_2_joint_position'])
-        joint_positions.append(self.joint_positions['wrist_3_joint_position'])
+        joint_positions = [self.joint_positions['base_joint_position'], self.joint_positions['shoulder_joint_position'],
+                           self.joint_positions['elbow_joint_position'], self.joint_positions['wrist_1_joint_position'],
+                           self.joint_positions['wrist_2_joint_position'],
+                           self.joint_positions['wrist_3_joint_position']]
         return np.array(joint_positions)
-
-
 
     def get_joint_name_order(self) -> list:
         return ['base', 'shoulder', 'elbow', 'wrist_1', 'wrist_2', 'wrist_3']
@@ -334,7 +334,6 @@ class URBaseEnv(gym.Env):
 
         return state.astype(np.float32)
 
-
     def _get_observation_space(self) -> gym.spaces.Box:
         """Get environment observation space.
 
@@ -357,7 +356,6 @@ class URBaseEnv(gym.Env):
 
         return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float32)
 
-    
     def _get_action_space(self)-> gym.spaces.Box:
         """Get environment action space.
 
@@ -368,7 +366,7 @@ class URBaseEnv(gym.Env):
         fixed_joints = [self.fix_base, self.fix_shoulder, self.fix_elbow, self.fix_wrist_1, self.fix_wrist_2, self.fix_wrist_3]
         num_control_joints = len(fixed_joints) - sum(fixed_joints)
 
-        return gym.spaces.Box(low=np.full((num_control_joints), -1.0), high=np.full((num_control_joints), 1.0), dtype=np.float32)
+        return gym.spaces.Box(low=np.full(num_control_joints, -1.0), high=np.full(num_control_joints, 1.0), dtype=np.float32)
 
 
 class EmptyEnvironmentURSim(URBaseEnv, Simulation):
@@ -380,10 +378,12 @@ class EmptyEnvironmentURSim(URBaseEnv, Simulation):
         rviz_gui:=false \
         gazebo_gui:=true \
         rs_mode:=only_robot"
+
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, ur_model='ur5', **kwargs):
         self.cmd = self.cmd + ' ' + 'ur_model:=' + ur_model
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
         URBaseEnv.__init__(self, rs_address=self.robot_server_ip, ur_model=ur_model, **kwargs)
+
 
 class EmptyEnvironmentURRob(URBaseEnv):
     real_robot = True

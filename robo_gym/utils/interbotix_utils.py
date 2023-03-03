@@ -6,11 +6,14 @@ import os
 import copy
 import math
 from random import randint
-from ur_kinematics_utils import kinematics
+import modern_robotics as mr
+from interbotix_ux_modules.src.interbotix_ux_modules.core import InterbotixRobotUXCore
+from interbotix_ux_modules.src.interbotix_ux_modules import mr_descriptions as mrd
+from interbotix_common_modules import angle_manipulation as ang
 
 
-class UR:
-    """Universal Robots utilities class.
+class InterbotixArm:
+    """Interbotix arms utilities class.
 
     Attributes:
         max_joint_positions (np.array): Maximum joint position values (rad)`.
@@ -28,10 +31,11 @@ class UR:
 
     def __init__(self, model):
 
-        assert model in ["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e"]
+        assert model in ["rx150", "wx250", "px150", "rx200", "vx250", "vx300", "wx200", "wx250", "px100", "vx300s",
+                         "wx250s"]
 
         file_name = model + ".yaml"
-        file_path = os.path.join(os.path.dirname(__file__), 'ur_parameters', file_name)
+        file_path = os.path.join(os.path.dirname(__file__), 'interbotix_parameters', file_name)
 
         # Load robot paramters
         with open(file_path, 'r') as stream:
@@ -41,16 +45,31 @@ class UR:
                 print(exc) 
 
         # Joint Names (Standard Indexing):
-        self.joint_names = ["shoulder_pan", "shoulder_lift", "elbow_joint", \
-                         "wrist_1", "wrist_2", "wrist_3"]
-        
-        # Initialize joint limits attributes
-        self.max_joint_positions = np.zeros(6)
-        self.min_joint_positions = np.zeros(6)
-        self.max_joint_velocities = np.zeros(6)
-        self.min_joint_velocities = np.zeros(6)
+        if model == 'rx150' or model == 'wx250' or model == 'px150' or model == 'rx200' or model == 'vx250' or \
+                model == 'vx300' or model == 'wx200' or model == 'wx250':
+            self.dof = 5
+        elif model == 'px100':
+            self.dof = 4
+        elif model == 'vx300s' or model == 'wx250s':
+            self.dof = 6
+        else:
+            # shouldn't get here
+            self.dof = 5
 
-        for idx,joint in enumerate(self.joint_names):
+        if self.dof == 4:
+            self.joint_names = ['waist', 'shoulder', 'elbow', 'wrist_angle']
+        elif self.dof == 5:
+            self.joint_names = ['waist', 'shoulder', 'elbow', 'wrist_angle', 'wrist_rotate']
+        elif self.dof == 6:
+            self.joint_names = ['waist', 'shoulder', 'elbow', 'forearm_roll', 'wrist_angle', 'wrist_rotate']
+
+        # Initialize joint limits attributes
+        self.max_joint_positions = np.zeros(self.dof)
+        self.min_joint_positions = np.zeros(self.dof)
+        self.max_joint_velocities = np.zeros(self.dof)
+        self.min_joint_velocities = np.zeros(self.dof)
+
+        for idx, joint in enumerate(self.joint_names):
             self.max_joint_positions[idx] = p["joint_limits"][joint]["max_position"] 
             self.min_joint_positions[idx] = p["joint_limits"][joint]["min_position"]
             self.max_joint_velocities[idx] = p["joint_limits"][joint]["max_velocity"]
@@ -68,6 +87,9 @@ class UR:
         self.y_range = [0, 0]
         self.z_range = [0, 0]
         self.origin_offset = p["workspace_area"]["origin_offset"]
+        self.robot_des = getattr(mrd, "uxarm" + str(self.dof + 1))
+        self.limits = {name: {"lower": 0, "upper": 0} for name in self.joint_names}
+        self.initial_guesses = self.robot_des.Guesses
 
     def get_max_joint_positions(self):
 
@@ -112,6 +134,7 @@ class UR:
         """
         pose = np.zeros(6)
         singularity_area = True
+        x = y = z = 0
 
         if self.ws_limited:
             while singularity_area:
@@ -127,13 +150,13 @@ class UR:
                 self.x_range = [x_min, self.origin_offset[0] + depth - gripper_l]
 
                 x, y, z = (randint(self.x_range[0], self.x_range[1])/1000,
-                          randint(self.y_range[0], self.y_range[1])/1000,
-                          randint((self.z_range[0]+self.z_range[1])/2, self.z_range[1])/1000)
-
+                           randint(self.y_range[0], self.y_range[1])/1000,
+                           randint(self.z_range[0], self.z_range[1])/1000)
                 length = math.sqrt(x**2 + y**2 + z**2)
 
                 if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
-                   singularity_area = False
+                    singularity_area = False
+
             self.x_range = [self.x_range[0] / 1000, self.x_range[1] / 1000]
             self.y_range = [self.y_range[0] / 1000, self.y_range[1] / 1000]
             self.z_range = [self.z_range[0] / 1000, self.z_range[1] / 1000]
@@ -162,7 +185,7 @@ class UR:
 
         return pose
 
-    def _ros_joint_list_to_ur_joint_list(self, ros_thetas):
+    def _ros_joint_list_to_interbotix_joint_list(self, ros_thetas):
         """Transform joint angles list from ROS indexing to standard indexing.
 
         Rearrange a list containing the joints values from the joint indexes used
@@ -176,10 +199,14 @@ class UR:
             np.array: Joint angles with standard indexing.
 
         """
+        if self.dof == 4:
+            return np.array([ros_thetas[5], ros_thetas[4], ros_thetas[0], ros_thetas[6]])
+        elif self.dof == 5:
+            return np.array([ros_thetas[5], ros_thetas[4], ros_thetas[0], ros_thetas[6], ros_thetas[7]])
+        else:
+            return np.array([ros_thetas[6], ros_thetas[5], ros_thetas[0], ros_thetas[1], ros_thetas[7], ros_thetas[8]])
 
-        return np.array([ros_thetas[2],ros_thetas[1],ros_thetas[0],ros_thetas[3],ros_thetas[4],ros_thetas[5]])
-
-    def _ur_joint_list_to_ros_joint_list(self,  thetas):
+    def _interbotix_joint_list_to_ros_joint_list(self,  thetas):
         """Transform joint angles list from standard indexing to ROS indexing.
 
         Rearrange a list containing the joints values from the standard joint indexing
@@ -193,12 +220,15 @@ class UR:
             np.array: Joint angles with ROS indexing.
 
         """
-
-        return np.array([thetas[2],thetas[1],thetas[0],thetas[3],thetas[4],thetas[5]])
+        if self.dof == 4:
+            return np.array([thetas[0], thetas[1], thetas[2], thetas[3]])
+        elif self.dof == 5:
+            return np.array([thetas[0], thetas[1], thetas[2], thetas[3], thetas[4]])
+        else:
+            return np.array([thetas[0], thetas[1], thetas[2], thetas[3], thetas[4], thetas[5]])
 
     def check_ee_pose_in_workspace(self, joints):
-        kin_model = kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
-        pose, orientation = kin_model.forward_kin(joints)
+        pose, rotation = self.forward_kinematics(joints)
         if self.x_range[0] <= pose[0] <= self.x_range[1] and self.y_range[0] <= pose[1] <= \
                 self.y_range[1] and self.z_range[0] <= pose[2] <= self.z_range[1] and (pose[0] ** 2 + pose[1] ** 2) > \
                 self.ws_min_r ** 2:
@@ -206,3 +236,42 @@ class UR:
             return True
         else:
             return False
+
+    def forward_kinematics(self, positions):
+        joint_commands = list(positions)
+        end_effector_pose = mr.FKinSpace(self.robot_des.M, self.robot_des.Slist, joint_commands)
+        rpy = ang.rotationMatrixToEulerAngles(end_effector_pose[:3, :3])
+        pose = end_effector_pose[:3, 3]
+        return pose, rpy
+
+    def inverse_kinematics(self, ee_pose, custom_guess=None):
+        theta_list = []
+        ee_transform = ang.poseToTransformationMatrix(ee_pose)
+        if custom_guess is None:
+            initial_guesses = self.initial_guesses
+        else:
+            initial_guesses = [custom_guess]
+
+        for guess in initial_guesses:
+            theta_list, success = mr.IKinSpace(self.robot_des.Slist, self.robot_des.M, ee_transform, guess, 0.0001,
+                                               0.0001)
+
+            # Check to make sure a solution was found and that no joint limits were violated
+            if success:
+                solution_found = self.check_joint_limits(theta_list)
+            else:
+                solution_found = False
+
+            if solution_found:
+                return theta_list, True
+
+        return theta_list, False
+
+    def check_joint_limits(self, positions):
+        theta_list = [int(elem * 1000)/1000.0 for elem in positions]
+        cntr = 0
+        for name in self.joint_names:
+            if not (self.limits[name]["lower"] <= theta_list[cntr] <= self.limits[name]["upper"]):
+                return False
+            cntr += 1
+        return True
