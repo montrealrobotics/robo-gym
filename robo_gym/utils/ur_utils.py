@@ -116,17 +116,14 @@ class UR(ManipulatorModel):
                 x_min = self.origin_offset[0] if self.origin_offset[0] > gripper_l else gripper_l
                 self.x_range = [x_min, self.origin_offset[0] + depth - gripper_l]
 
-                x, y, z = ((self.x_range[0] + self.x_range[1])/1000,
-                           (self.y_range[0] + self.y_range[1])/1000,
-                           (self.z_range[0]+self.z_range[1])/2)
+                x, y, z = (randint(self.x_range[0], self.x_range[1])/1000,
+                          randint(self.y_range[0], self.y_range[1])/1000,
+                          randint((self.z_range[0]+self.z_range[1])/2, self.z_range[1])/1000)
 
-                #x, y, z = (randint(self.x_range[0], self.x_range[1])/1000,
-                #           randint(self.y_range[0], self.y_range[1])/1000,
-                #           randint((self.z_range[0]+self.z_range[1])/2, self.z_range[1])/1000)
                 length = math.sqrt(x**2 + y**2 + z**2)
-                singularity_area=False
-                #if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
-                #    singularity_area = False
+
+                if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
+                   singularity_area = False
             self.x_range = [self.x_range[0] / 1000, self.x_range[1] / 1000]
             self.y_range = [self.y_range[0] / 1000, self.y_range[1] / 1000]
             self.z_range = [self.z_range[0] / 1000, self.z_range[1] / 1000]
