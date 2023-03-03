@@ -33,7 +33,36 @@ register(
     id='ObstacleAvoidanceMir100Rob-v0',
     entry_point='robo_gym.envs:ObstacleAvoidanceMir100Rob',
 )
+# Interbotix arm environments
+register(
+    id='EmptyEnvironmentInterbotixASim-v0',
+    entry_point='robo_gym.envs:EmptyEnvironmentInterbotixASim',
+)
 
+register(
+    id='EmptyEnvironmentInterbotixARob-v0',
+    entry_point='robo_gym.envs:EmptyEnvironmentInterbotixARob',
+)
+
+register(
+    id='EndEffectorPositioningInterbotixASim-v0',
+    entry_point='robo_gym.envs:EndEffectorPositioningInterbotixASim',
+)
+
+register(
+    id='EndEffectorPositioningInterbotixARob-v0',
+    entry_point='robo_gym.envs:EndEffectorPositioningInterbotixARob',
+)
+
+register(
+    id='BasicAvoidanceInterbotixASim-v0',
+    entry_point='robo_gym.envs:BasicAvoidanceInterbotixASim',
+)
+
+register(
+    id='BasicAvoidanceInterbotixARob-v0',
+    entry_point='robo_gym.envs:BasicAvoidanceInterbotixARob',
+)
 # UR Environments
 register(
     id='EmptyEnvironmentURSim-v0',
