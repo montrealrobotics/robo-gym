@@ -33,7 +33,7 @@ class URBaseEnv(gym.Env):
 
     """
     real_robot = False
-    max_episode_steps = 300
+    max_episode_steps = 100
 
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_wrist_1=False, fix_wrist_2=False, fix_wrist_3=True, ur_model='ur5', rs_state_to_info=True, **kwargs):
         self.ur = ur_utils.UR(model=ur_model)
@@ -174,35 +174,24 @@ class URBaseEnv(gym.Env):
         # Convert action indexing from ur to ros
         rs_action = self.ur._ur_joint_list_to_ros_joint_list(rs_action)
 
-        return rs_action        
-
+        return rs_action 
+               
     def step(self, action) -> Tuple[np.array, float, bool, dict]:
         if type(action) == list: action = np.array(action)
-        valid_pose = False
-        rs_action = []
+
+        action = action.astype(np.float32)
+            
         self.elapsed_steps += 1
 
-        while not valid_pose:
-            action = action.astype(np.float32)
+        # Check if the action is contained in the action space
+        if not self.action_space.contains(action):
+            raise InvalidActionError()
 
-            # Check if the action is contained in the action space
-            if not self.action_space.contains(action):
-                raise InvalidActionError()
+        # Add missing joints which were fixed at initialization
+        action = self.add_fixed_joints(action)
 
-            # Add missing joints which were fixed at initialization
-
-            action = self.add_fixed_joints(action)
-            rs_action = self.env_action_to_rs_action(action)
-            if not self.ur.ws_limited:
-                valid_pose = True
-                break
-            action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
-
-            valid_pose = self.ur.check_ee_pose_in_workspace(action_diff_order)
-            if not valid_pose:
-                action = self.action_space.sample()
-
-            # Convert environment action to robot server action
+        # Convert environment action to robot server action
+        rs_action = self.env_action_to_rs_action(action)
 
         # Send action to Robot Server and get state
         rs_state = self.client.send_action_get_state(rs_action.tolist()).state_dict
@@ -224,6 +213,7 @@ class URBaseEnv(gym.Env):
         if self.rs_state_to_info: info['rs_state'] = self.rs_state
 
         return state, reward, done, info
+
 
     def get_rs_state(self):
         return self.rs_state
