@@ -215,57 +215,6 @@ class URBaseEnv(gym.Env):
         return state, reward, done, info
 
 
-
-    # def step(self, action) -> Tuple[np.array, float, bool, dict]:
-    #     if type(action) == list: action = np.array(action)
-    #     valid_pose = False
-    #     rs_action = []
-
-    #     if not self.ur.ws_limited:
-    #         valid_pose = True
-
-    #     while not valid_pose:
-    #         action = action.astype(np.float32)
-
-    #         self.elapsed_steps += 1
-
-    #         # Check if the action is contained in the action space
-    #         if not self.action_space.contains(action):
-    #             raise InvalidActionError()
-
-    #         # Add missing joints which were fixed at initialization
-
-    #         action = self.add_fixed_joints(action)
-    #         rs_action = self.env_action_to_rs_action(action)
-    #         action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
-
-    #         valid_pose = self.ur.check_ee_pose_in_workspace(action_diff_order)
-    #         if not valid_pose:
-    #             action = self.action_space.sample()
-
-    #         # Convert environment action to robot server action
-
-    #     # Send action to Robot Server and get state
-    #     rs_state = self.client.send_action_get_state(rs_action.tolist()).state_dict
-    #     self._check_rs_state_keys(rs_state)
-
-    #     # Convert the state from Robot Server format to environment format
-    #     state = self._robot_server_state_to_env_state(rs_state)
-
-    #     # Check if the environment state is contained in the observation space
-    #     if not self.observation_space.contains(state):
-    #         raise InvalidStateError()
-
-    #     self.rs_state = rs_state
-
-    #     # Assign reward
-    #     reward = 0
-    #     done = False
-    #     reward, done, info = self.reward(rs_state=rs_state, action=action)
-    #     if self.rs_state_to_info: info['rs_state'] = self.rs_state
-
-    #     return state, reward, done, info
-
     def get_rs_state(self):
         return self.rs_state
 

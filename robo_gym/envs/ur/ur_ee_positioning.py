@@ -143,8 +143,6 @@ class EndEffectorPositioningUR(URBaseEnv):
             joint_velocities.append(rs_state[velocity])
         joint_velocities = np.array(joint_velocities)
 
-
-
         # Compose environment state
         state = np.concatenate((target_polar, joint_positions, joint_velocities, target_coord, ee_to_ref_frame_translation, self.previous_action))
 
@@ -300,11 +298,9 @@ class EndEffectorPositioningUR(URBaseEnv):
 
         # Reward base
         reward += np.exp(-d_w*euclidean_dist_3d) # b/w 0 and 1 (positive reinforcement )
-        
 
         ## Out of Safety Constraint 
         if not self.check_safety_conditions(action):
-            #print("Safety Constraint Violated")
             reward += -1  
 
         if euclidean_dist_3d <= DISTANCE_THRESHOLD:
@@ -330,14 +326,7 @@ class EndEffectorPositioningUR(URBaseEnv):
     def check_safety_conditions(self, action) -> bool: 
         action = action.astype(np.float32)
 
-        #self.elapsed_steps += 1
-
-        # Check if the action is contained in the action space
-        #if not self.action_space.contains(action):
-        #    raise InvalidActionError()
-
         # Add missing joints which were fixed at initialization
-
         action = self.add_fixed_joints(action)
         rs_action = self.env_action_to_rs_action(action)
         action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
