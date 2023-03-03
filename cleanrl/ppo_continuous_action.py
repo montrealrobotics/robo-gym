@@ -73,6 +73,10 @@ def parse_args():
         help="the target KL divergence threshold")
     parser.add_argument("--ip", type=str, default='127.0.0.1',
             help="ip of the UR server")
+    parser.add_argument("--robot_type", type=str, default='ur',
+            help="robot manufacturer")
+    parser.add_argument("--rs-address", type=str, default='',
+                        help = "the ip:port of the robot server")
     args = parser.parse_args()
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
@@ -80,9 +84,22 @@ def parse_args():
     return args
 
 
-def make_env(env_id, seed, idx, capture_video, run_name, gamma, ip):
+def make_env(env_id, robot_type, seed, idx, capture_video, run_name, gamma, ip, rs_address):
     def thunk():
-        env = gym.make(env_id, ur_model='ur5', ip='127.0.0.1', gui=False)
+        if robot_type == "ur":
+            if rs_address:
+                env = gym.make(env_id, ur_model='ur5', rs_address=rs_address)
+            elif ip:
+                env = gym.make(env_id, ur_model='ur5', ip=ip, gui=True)
+            else:
+                env = gym.make(env_id)
+        elif robot_type == "interbotix":
+            if rs_address:
+                env = gym.make(env_id, robot_model='rx150', rs_address=rs_address)
+            elif ip:
+                env = gym.make(env_id, robot_model='rx150', ip=ip, gui=True)
+            else:
+                env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         # if capture_video:
         #    if idx == 0:
@@ -169,7 +186,7 @@ if __name__ == "__main__":
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name, args.gamma, args.ip) for i in range(args.num_envs)]
+        [make_env(args.env_id, args.robot_type, args.seed + i, i, args.capture_video, run_name, args.gamma, args.ip, args.rs_address) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
@@ -190,7 +207,6 @@ if __name__ == "__main__":
     next_obs = torch.Tensor(envs.reset()).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
     num_updates = args.total_timesteps // args.batch_size
-    print(num_updates)
     for update in range(1, num_updates + 1):
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
@@ -218,11 +234,12 @@ if __name__ == "__main__":
             for item in info:
                 if "episode" in item.keys():
                     print(f"global_step={global_step}, episodic_return={item['episode']['r']}")
-                    wandb.log({"charts/episodic_return": item["episode"]["r"]}, step=global_step)
-                    wandb.log({"charts/episodic_length": item["episode"]["l"]}, step=global_step)
-                    torch.save(agent.state_dict(), os.path.join(wandb.run.dir, "agent.pt"))
-                    wandb.save(os.path.join(wandb.run.dir, "agent.pt"))
                     #agent.save(os.path.join(wandb.run.dir, "agent.h5"))
+                    if args.track:
+                        wandb.log({"charts/episodic_return": item["episode"]["r"]}, step=global_step)
+                        wandb.log({"charts/episodic_length": item["episode"]["l"]}, step=global_step)
+                        torch.save(agent.state_dict(), os.path.join(wandb.run.dir, "agent.pt"))
+                        wandb.save(os.path.join(wandb.run.dir, "agent.pt"))
                     break
 
         # bootstrap value if not done
@@ -309,17 +326,18 @@ if __name__ == "__main__":
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        wandb.log({"charts/learning_rate": optimizer.param_groups[0]["lr"]}, step=global_step)
-        wandb.log({"losses/value_loss": v_loss.item()}, step=global_step)
-        wandb.log({"losses/policy_loss": pg_loss.item()}, step=global_step)
-        wandb.log({"losses/entropy": entropy_loss.item()}, step=global_step)
-        wandb.log({"losses/old_approx_kl": old_approx_kl.item()}, step=global_step)
-        wandb.log({"losses/approx_kl": approx_kl.item()}, step=global_step)
-        wandb.log({"losses/clipfrac": np.mean(clipfracs)}, step=global_step)
-        wandb.log({"losses/explained_variance": explained_var}, step=global_step)
-        print("SPS:", int(global_step / (time.time() - start_time)))
-        wandb.log({"charts/SPS": int(global_step / (time.time() - start_time))}, step=global_step)
+        if args.track:
+            wandb.log({"charts/learning_rate": optimizer.param_groups[0]["lr"]}, step=global_step)
+            wandb.log({"losses/value_loss": v_loss.item()}, step=global_step)
+            wandb.log({"losses/policy_loss": pg_loss.item()}, step=global_step)
+            wandb.log({"losses/entropy": entropy_loss.item()}, step=global_step)
+            wandb.log({"losses/old_approx_kl": old_approx_kl.item()}, step=global_step)
+            wandb.log({"losses/approx_kl": approx_kl.item()}, step=global_step)
+            wandb.log({"losses/clipfrac": np.mean(clipfracs)}, step=global_step)
+            wandb.log({"losses/explained_variance": explained_var}, step=global_step)
+            wandb.log({"charts/SPS": int(global_step / (time.time() - start_time))}, step=global_step)
 
+        print("SPS:", int(global_step / (time.time() - start_time)))
     envs.close()
     writer.close()
 

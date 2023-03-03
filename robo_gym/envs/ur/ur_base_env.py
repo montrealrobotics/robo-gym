@@ -12,6 +12,7 @@ from robo_gym.envs.simulation_wrapper import Simulation
 # base, shoulder, elbow, wrist_1, wrist_2, wrist_3
 JOINT_POSITIONS = [0.0, -2.5, 1.5, 0.0, -1.4, 0.0]
 
+
 class URBaseEnv(gym.Env):
     """Universal Robots UR base environment.
 
@@ -60,7 +61,6 @@ class URBaseEnv(gym.Env):
         else:
             print("WARNING: No IP and Port passed. Simulation will not be started")
             print("WARNING: Use this only to get environment shape")
-
 
     def _set_initial_robot_server_state(self, rs_state) -> robot_server_pb2.State:
         string_params = {}
