@@ -91,7 +91,7 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
 
         # Initialize desired joint positions
         if joint_positions: 
-            assert len(joint_positions) == 6
+            assert len(joint_positions) == self.interbotix.dof
         else:
             joint_positions = self.joint_positions_list
 

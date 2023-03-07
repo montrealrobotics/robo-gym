@@ -35,7 +35,7 @@ class InterbotixABaseEnv(gym.Env):
 
     """
     real_robot = False
-    max_episode_steps = 300
+    max_episode_steps = 100
 
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_forearm_roll=False,
                  fix_wrist_angle=False, fix_wrist_rotate=False, robot_model='rx150', rs_state_to_info=True, **kwargs):
@@ -210,29 +210,18 @@ class InterbotixABaseEnv(gym.Env):
         rs_action = []
         self.elapsed_steps += 1
 
-        while not valid_pose:
-            action = action.astype(np.float32)
 
-            # Check if the action is contained in the action space
-            if not self.action_space.contains(action):
-                raise InvalidActionError()
+        action = action.astype(np.float32)
 
-            # Add missing joints which were fixed at initialization
+        # Check if the action is contained in the action space
+        if not self.action_space.contains(action):
+            raise InvalidActionError()
 
-            action = self.add_fixed_joints(action)
-            rs_action = self.env_action_to_rs_action(action)
-            if not self.interbotix.ws_limited:
-                valid_pose = True
-                break
-            action_diff_order = []
-            for i in range(self.interbotix.dof):
-                action_diff_order.append(rs_action[i])
+        # Add missing joints which were fixed at initialization
+        action = self.add_fixed_joints(action)
 
-            valid_pose = self.interbotix.check_ee_pose_in_workspace(action_diff_order)
-            if not valid_pose:
-                action = self.action_space.sample()
-
-            # Convert environment action to robot server action
+        # Convert environment action to robot server action
+        rs_action = self.env_action_to_rs_action(action)
 
         # Send action to Robot Server and get state
         rs_state = self.client.send_action_get_state(rs_action.tolist()).state_dict
@@ -349,13 +338,14 @@ class InterbotixABaseEnv(gym.Env):
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
 
-        rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
-        rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
-        rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
-        rs_state['object_0_to_ref_rotation_x'] = 0
-        rs_state['object_0_to_ref_rotation_y'] = 0
-        rs_state['object_0_to_ref_rotation_z'] = 0
-        rs_state['object_0_to_ref_rotation_w'] = 1
+        if self.ee_target_pose:
+            rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
+            rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
+            rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
+            rs_state['object_0_to_ref_rotation_x'] = 0
+            rs_state['object_0_to_ref_rotation_y'] = 0
+            rs_state['object_0_to_ref_rotation_z'] = 0
+            rs_state['object_0_to_ref_rotation_w'] = 1
 
         if not len(keys) == len(rs_state.keys()):
             raise InvalidStateError("Robot Server state keys to not match. Different lengths.")
@@ -379,7 +369,7 @@ class InterbotixABaseEnv(gym.Env):
         """Get robot joint positions with standard indexing."""
         joint_positions = []
         for i in range(self.interbotix.dof):
-            joint_positions.append(self.joint_list[i])
+            joint_positions.append(self.joint_positions[self.joint_list[i]])
 
         return np.array(joint_positions)
 

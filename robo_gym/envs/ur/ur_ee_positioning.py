@@ -458,14 +458,14 @@ class EndEffectorPositioningUR(URBaseEnv):
         return reward, done, info
 
 
-    def check_safety_conditions(self, action) -> bool: 
+    def check_safety_conditions(self, action) -> bool:
         action = action.astype(np.float32)
 
         # Add missing joints which were fixed at initialization
         action = self.add_fixed_joints(action)
         rs_action = self.env_action_to_rs_action(action)
         action_diff_order = [rs_action[2], rs_action[1], rs_action[0], rs_action[3], rs_action[4], rs_action[5]]
-        
+
         return self.ur.check_ee_pose_in_workspace(action_diff_order)
 
     def _get_target_pose(self) -> np.ndarray:
@@ -507,7 +507,7 @@ class EndEffectorPositioningURSim(EndEffectorPositioningUR, Simulation):
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.1 \
         action_cycle_rate:=10 \
-        rviz_gui:=true \
+        rviz_gui:=false \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1object \
