@@ -210,7 +210,8 @@ class URBaseEnv(gym.Env):
         reward = 0
         done = False
         reward, done, info = self.reward(rs_state=rs_state, action=action)
-        if self.rs_state_to_info: info['rs_state'] = self.rs_state
+        if self.rs_state_to_info:
+            info['rs_state'] = self.rs_state
 
         return state, reward, done, info
 

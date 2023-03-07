@@ -65,13 +65,18 @@ class BasicAvoidanceInterbotixA(InterbotixABaseAvoidanceEnv):
                                            string_params=string_params, state_dict=rs_state)
         return state_msg
 
-    def reset(self, joint_positions=JOINT_POSITIONS_5DOF, fixed_object_position=None) -> np.ndarray:
+    def reset(self, joint_positions=None, fixed_object_position=None) -> np.ndarray:
         """Environment reset.
 
         Args:
             joint_positions (list[dof] or np.array[dof]): robot joint positions in radians.
             fixed_object_position (list[3]): x,y,z fixed position of object
         """
+        if joint_positions:
+            assert len(joint_positions) == self.interbotix.dof
+        else:
+            joint_positions = self.joint_positions_list
+
         self.prev_action = np.zeros(self.interbotix.dof)
 
         state = super().reset(joint_positions=joint_positions, fixed_object_position=fixed_object_position)
@@ -154,7 +159,6 @@ class BasicAvoidanceInterbotixA(InterbotixABaseAvoidanceEnv):
 class BasicAvoidanceInterbotixASim(BasicAvoidanceInterbotixA, Simulation):
     cmd = "roslaunch interbotix_arm_robot_server interbotix_arm_robot_server.launch \
         world_name:=tabletop_sphere50.world \
-        reference_frame:=base_link \
         max_velocity_scale_factor:=0.2 \
         action_cycle_rate:=20 \
         rviz_gui:=false \
@@ -166,7 +170,7 @@ class BasicAvoidanceInterbotixASim(BasicAvoidanceInterbotixA, Simulation):
         object_0_frame:=target"
 
     def __init__(self, ip=None, lower_bound_port=None, upper_bound_port=None, gui=False, robot_model='rx150', **kwargs):
-        self.cmd = self.cmd + ' ' + 'robot_model:=' + robot_model
+        self.cmd = self.cmd + ' ' + 'robot_model:=' + robot_model+ ' reference_frame:=' + robot_model + "/base_link"
         Simulation.__init__(self, self.cmd, ip, lower_bound_port, upper_bound_port, gui, **kwargs)
         BasicAvoidanceInterbotixA.__init__(self, rs_address=self.robot_server_ip, robot_model=robot_model, **kwargs)
 
