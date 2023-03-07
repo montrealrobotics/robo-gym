@@ -134,6 +134,7 @@ class UR:
 
                 if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
                    singularity_area = False
+
             self.x_range = [self.x_range[0] / 1000, self.x_range[1] / 1000]
             self.y_range = [self.y_range[0] / 1000, self.y_range[1] / 1000]
             self.z_range = [self.z_range[0] / 1000, self.z_range[1] / 1000]
