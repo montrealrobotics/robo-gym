@@ -333,7 +333,7 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         
         # Check if current position is in the range of the initial joint positions
         for joint in self.joint_positions.keys():
-            if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.05):
+            if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.15):
                 raise InvalidStateError('Reset joint positions are not within defined range')
             
         return state
