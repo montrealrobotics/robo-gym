@@ -73,7 +73,7 @@ def parse_args():
         help="the target KL divergence threshold")
     parser.add_argument("--ip", type=str, default='127.0.0.1',
             help="ip of the UR server")
-    parser.add_argument("--robot_type", type=str, default='ur',
+    parser.add_argument("--robot-type", type=str, default='ur',
             help="robot manufacturer")
     parser.add_argument("--rs-address", type=str, default='',
                         help = "the ip:port of the robot server")
@@ -95,7 +95,7 @@ def make_env(env_id, robot_type, seed, idx, capture_video, run_name, gamma, ip, 
                 env = gym.make(env_id)
         elif robot_type == "interbotix":
             if rs_address:
-                env = gym.make(env_id, robot_model='rx150', rs_address=rs_address)
+                env = gym.make(env_id, rs_address=rs_address, robot_model='rx150')
             elif ip:
                 env = gym.make(env_id, robot_model='rx150', ip=ip, gui=True)
             else:
@@ -186,7 +186,8 @@ if __name__ == "__main__":
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.robot_type, args.seed + i, i, args.capture_video, run_name, args.gamma, args.ip, args.rs_address) for i in range(args.num_envs)]
+        [make_env(args.env_id, args.robot_type, args.seed + i, i, args.capture_video, run_name, args.gamma, args.ip,
+                  args.rs_address) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 

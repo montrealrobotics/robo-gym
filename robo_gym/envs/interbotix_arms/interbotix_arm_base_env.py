@@ -338,7 +338,7 @@ class InterbotixABaseEnv(gym.Env):
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
 
-        if self.ee_target_pose:
+        if self.ee_target_pose.any():
             rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
             rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
             rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
