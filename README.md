@@ -75,7 +75,7 @@ connected via network.
 You can perform a minimal install of robo-gym with:
 
 ```bash
-git clone https://github.com/jr-robotics/robo-gym.git
+git clone https://github.com/montrealrobotics/robo-gym.git
 cd robo-gym
 pip install -e .
 ```
