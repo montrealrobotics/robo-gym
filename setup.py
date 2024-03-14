@@ -26,6 +26,7 @@ setuptools.setup(
         "numpy",
         "scipy",
         "pyyaml",
+        'modern_robotics',
     ],
     python_requires=">=3.8",
     scripts=["bin/run-rs-side-standard"],
