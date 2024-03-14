@@ -24,7 +24,8 @@ setuptools.setup(name='robo-gym',
       'robo-gym-server-modules',
       'numpy',
       'scipy',
-      'pyyaml'
+      'pyyaml',
+      'modern_robotics'
       ],
       python_requires='>=3.6',
       scripts = ['bin/run-rs-side-standard']
