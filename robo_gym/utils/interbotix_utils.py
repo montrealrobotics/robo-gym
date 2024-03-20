@@ -7,9 +7,8 @@ import copy
 import math
 from random import randint
 import modern_robotics as mr
-from interbotix_ux_modules.src.interbotix_ux_modules.core import InterbotixRobotUXCore
-from interbotix_ux_modules.src.interbotix_ux_modules import mr_descriptions as mrd
-from interbotix_common_modules import angle_manipulation as ang
+from interbotix_parameters import mr_descriptions as mrd
+import utils
 
 
 class InterbotixArm:
@@ -240,13 +239,13 @@ class InterbotixArm:
     def forward_kinematics(self, positions):
         joint_commands = list(positions)
         end_effector_pose = mr.FKinSpace(self.robot_des.M, self.robot_des.Slist, joint_commands)
-        rpy = ang.rotationMatrixToEulerAngles(end_effector_pose[:3, :3])
+        rpy = utils.rotation_matrix_to_euler_angles(end_effector_pose[:3, :3])
         pose = end_effector_pose[:3, 3]
         return pose, rpy
 
     def inverse_kinematics(self, ee_pose, custom_guess=None):
         theta_list = []
-        ee_transform = ang.poseToTransformationMatrix(ee_pose)
+        ee_transform = utils.pose_to_transformation_matrix(ee_pose)
         if custom_guess is None:
             initial_guesses = self.initial_guesses
         else:
