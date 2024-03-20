@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
-import numpy as np
 import yaml
 import os  
 import copy
-import math
 from random import randint
 import modern_robotics as mr
-from interbotix_parameters import mr_descriptions as mrd
-import utils
+from .interbotix_parameters import mr_descriptions as mrd
+from robo_gym.utils import utils
 
 
 class InterbotixArm:
