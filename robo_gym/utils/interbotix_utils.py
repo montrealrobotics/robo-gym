@@ -5,7 +5,7 @@ import os
 import copy
 from random import randint
 import modern_robotics as mr
-from .interbotix_parameters import mr_descriptions as mrd
+from robo_gym.utils.interbotix_parameters import mr_descriptions as mrd
 from robo_gym.utils import utils
 
 
