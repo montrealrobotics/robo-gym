@@ -7,7 +7,7 @@ import os
 import copy
 import math
 from random import randint
-from ur_kinematics_utils import kinematics
+from robo_gym.utils import ur_kinematics
 
 
 from robo_gym.utils.manipulator_model import *
@@ -40,6 +40,17 @@ class UR(ManipulatorModel):
         file_path = os.path.join(os.path.dirname(__file__), "ur_parameters", file_name)
 
         super().__init__(model_key, file_path)
+        # Joint Names (Standard Indexing):
+        self.joint_names = ["shoulder_pan", "shoulder_lift", "elbow_joint", \
+                         "wrist_1", "wrist_2", "wrist_3"]
+
+        self.number_of_joints = 6
+        
+        # Initialize joint limits attributes
+        self.max_joint_positions = np.zeros(self.number_of_joints)
+        self.min_joint_positions = np.zeros(self.number_of_joints)
+        self.max_joint_velocities = np.zeros(self.number_of_joints)
+        self.min_joint_velocities = np.zeros(self.number_of_joints)
 
     def _swap_base_and_elbow(self, thetas: NDArray) -> NDArray:
         return np.array(
@@ -188,7 +199,7 @@ class UR(ManipulatorModel):
         return self._swap_base_and_elbow(thetas)
 
     def check_ee_pose_in_workspace(self, joints):
-        kin_model = kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
+        kin_model = ur_kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
         pose, orientation = kin_model.forward_kin(joints)
         if self.x_range[0] <= pose[0] <= self.x_range[1] and self.y_range[0] <= pose[1] <= \
                 self.y_range[1] and self.z_range[0] <= pose[2] <= self.z_range[1] and (pose[0] ** 2 + pose[1] ** 2) > \
