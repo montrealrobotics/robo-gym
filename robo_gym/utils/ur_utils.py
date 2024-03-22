@@ -6,7 +6,7 @@ import os
 import copy
 import math
 from random import randint
-from ur_kinematics_utils import kinematics
+from robo_gym.utils import ur_kinematics
 
 
 class UR:
@@ -43,12 +43,14 @@ class UR:
         # Joint Names (Standard Indexing):
         self.joint_names = ["shoulder_pan", "shoulder_lift", "elbow_joint", \
                          "wrist_1", "wrist_2", "wrist_3"]
+
+        self.number_of_joints = 6
         
         # Initialize joint limits attributes
-        self.max_joint_positions = np.zeros(6)
-        self.min_joint_positions = np.zeros(6)
-        self.max_joint_velocities = np.zeros(6)
-        self.min_joint_velocities = np.zeros(6)
+        self.max_joint_positions = np.zeros(self.number_of_joints)
+        self.min_joint_positions = np.zeros(self.number_of_joints)
+        self.max_joint_velocities = np.zeros(self.number_of_joints)
+        self.min_joint_velocities = np.zeros(self.number_of_joints)
 
         for idx,joint in enumerate(self.joint_names):
             self.max_joint_positions[idx] = p["joint_limits"][joint]["max_position"] 
@@ -198,7 +200,7 @@ class UR:
         return np.array([thetas[2],thetas[1],thetas[0],thetas[3],thetas[4],thetas[5]])
 
     def check_ee_pose_in_workspace(self, joints):
-        kin_model = kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
+        kin_model = ur_kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
         pose, orientation = kin_model.forward_kin(joints)
         if self.x_range[0] <= pose[0] <= self.x_range[1] and self.y_range[0] <= pose[1] <= \
                 self.y_range[1] and self.z_range[0] <= pose[2] <= self.z_range[1] and (pose[0] ** 2 + pose[1] ** 2) > \
