@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import math
 import yaml
 import os  
 import copy
@@ -29,8 +30,7 @@ class InterbotixArm:
 
     def __init__(self, model):
 
-        assert model in ["rx150", "wx250", "px150", "rx200", "vx250", "vx300", "wx200", "wx250", "px100", "vx300s",
-                         "wx250s"]
+        assert model in ["rx150", "wx250", "px150", "rx200", "vx250", "vx300", "wx200", "wx250", "px100", "vx300s", "wx250s"]
 
         file_name = model + ".yaml"
         file_path = os.path.join(os.path.dirname(__file__), 'interbotix_parameters', file_name)
@@ -85,9 +85,18 @@ class InterbotixArm:
         self.y_range = [0, 0]
         self.z_range = [0, 0]
         self.origin_offset = p["workspace_area"]["origin_offset"]
-        self.robot_des = getattr(mrd, "uxarm" + str(self.dof + 1))
-        self.limits = {name: {"lower": 0, "upper": 0} for name in self.joint_names}
-        self.initial_guesses = self.robot_des.Guesses
+        self.robot_des = getattr(mrd, model)
+
+        self.rev = 2 * math.pi
+        self.limits = {}
+
+        for joint in range(len(self.joint_names)):
+            name = self.joint_names[joint]
+            self.limits[name] = {"lower": self.min_joint_positions[joint], "upper": self.max_joint_positions[joint]}
+
+        self.initial_guesses = [[0.0] * self.dof for i in range(3)]
+        self.initial_guesses[1][0] = np.deg2rad(-120)
+        self.initial_guesses[2][0] = np.deg2rad(120)
 
     def get_max_joint_positions(self):
 
@@ -123,7 +132,7 @@ class InterbotixArm:
                 joints[i] = joints[i]/abs(self.max_joint_positions[i])
         return joints
 
-    def get_random_workspace_pose(self):
+    def get_random_workspace_pose(self, min_ee=None, max_ee=None, box_ws=True):
         """Get pose of a random point in the robot workspace.
 
         Returns:
@@ -133,51 +142,59 @@ class InterbotixArm:
         pose = np.zeros(6)
         singularity_area = True
         x = y = z = 0
-
-        if self.ws_limited:
-            while singularity_area:
-                width = int(self.ws_width * 1000)
-                depth = int(self.ws_depth * 1000)
-                height = int(self.ws_height * 1000)
-                gripper_l = int(self.ws_gripper_length * 1000)
-                self.y_range = [self.origin_offset[0] + int(gripper_l - width/2), self.origin_offset[0] + int(width/2 - gripper_l)]
-
-                z_min = self.origin_offset[2] if self.origin_offset[2] > gripper_l else gripper_l
-                self.z_range = [z_min, self.origin_offset[2] + height - gripper_l]
-                x_min = self.origin_offset[0] if self.origin_offset[0] > gripper_l else gripper_l
-                self.x_range = [x_min, self.origin_offset[0] + depth - gripper_l]
-
-                x, y, z = (randint(self.x_range[0], self.x_range[1])/1000,
-                           randint(self.y_range[0], self.y_range[1])/1000,
-                           randint(self.z_range[0], self.z_range[1])/1000)
-                length = math.sqrt(x**2 + y**2 + z**2)
-
-                if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
-                    singularity_area = False
-
-            self.x_range = [self.x_range[0] / 1000, self.x_range[1] / 1000]
-            self.y_range = [self.y_range[0] / 1000, self.y_range[1] / 1000]
-            self.z_range = [self.z_range[0] / 1000, self.z_range[1] / 1000]
-
+        if not (isinstance(min_ee, tuple) and len(min_ee) == 3 and isinstance(max_ee, tuple) and len(max_ee) == 3):
+            min_ee = [0.1, -0.3, 0.06]
+            max_ee = [0.4, 0.3, 0.35]
+        if box_ws:
+            # cube shaped workspace
+            x, y, z = (randint(min_ee[0]*1000, max_ee[0]*1000) / 1000,
+                       randint(min_ee[1]*1000, max_ee[1]*1000) / 1000,
+                       randint(min_ee[2]*1000, max_ee[2]*1000) / 1000)
         else:
-            # check if generated x,y,z are in singularity area
-            while singularity_area:
-                # Generate random uniform sample in semisphere taking advantage of the
-                # sampling rule
+            if self.ws_limited:
+                while singularity_area:
+                    width = int(self.ws_width * 1000)
+                    depth = int(self.ws_depth * 1000)
+                    height = int(self.ws_height * 1000)
+                    gripper_l = int(self.ws_gripper_length * 1000)
+                    self.y_range = [self.origin_offset[0] + int(gripper_l - width/2), self.origin_offset[0] + int(width/2 - gripper_l)]
 
-                phi = np.random.default_rng().uniform(low= 0.0, high= 2*np.pi)
-                costheta = np.random.default_rng().uniform(low= 0.0, high= 1.0) # [-1.0,1.0] for a sphere
-                u = np.random.default_rng().uniform(low= 0.0, high= 1.0)
+                    z_min = self.origin_offset[2] if self.origin_offset[2] > gripper_l else gripper_l
+                    self.z_range = [z_min, self.origin_offset[2] + height - gripper_l]
+                    x_min = self.origin_offset[0] if self.origin_offset[0] > gripper_l else gripper_l
+                    self.x_range = [x_min, self.origin_offset[0] + depth - gripper_l]
 
-                theta = np.arccos(costheta)
-                r = self.ws_r * np.cbrt(u)
+                    x, y, z = (randint(self.x_range[0], self.x_range[1])/1000,
+                               randint(self.y_range[0], self.y_range[1])/1000,
+                               randint(self.z_range[0], self.z_range[1])/1000)
+                    length = math.sqrt(x**2 + y**2 + z**2)
 
-                x = r * np.sin(theta) * np.cos(phi)
-                y = r * np.sin(theta) * np.sin(phi)
-                z = r * np.cos(theta)
+                    if (x**2 + y**2) > self.ws_min_r**2 and length < self.ws_r:
+                        singularity_area = False
 
-                if (x**2 + y**2) > self.ws_min_r**2:
-                    singularity_area = False
+                self.x_range = [self.x_range[0] / 1000, self.x_range[1] / 1000]
+                self.y_range = [self.y_range[0] / 1000, self.y_range[1] / 1000]
+                self.z_range = [self.z_range[0] / 1000, self.z_range[1] / 1000]
+
+            else:
+                # check if generated x,y,z are in singularity area
+                while singularity_area:
+                    # Generate random uniform sample in semisphere taking advantage of the
+                    # sampling rule
+
+                    phi = np.random.default_rng().uniform(low= 0.0, high= 2*np.pi)
+                    costheta = np.random.default_rng().uniform(low= 0.0, high= 1.0) # [-1.0,1.0] for a sphere
+                    u = np.random.default_rng().uniform(low= 0.0, high= 1.0)
+
+                    theta = np.arccos(costheta)
+                    r = self.ws_r * np.cbrt(u)
+
+                    x = r * np.sin(theta) * np.cos(phi)
+                    y = r * np.sin(theta) * np.sin(phi)
+                    z = r * np.cos(theta)
+
+                    if (x**2 + y**2) > self.ws_min_r**2:
+                        singularity_area = False
 
         pose[0:3] = [x, y, z]
 
@@ -239,7 +256,8 @@ class InterbotixArm:
         joint_commands = list(positions)
         end_effector_pose = mr.FKinSpace(self.robot_des.M, self.robot_des.Slist, joint_commands)
         rpy = utils.rotation_matrix_to_euler_angles(end_effector_pose[:3, :3])
-        pose = end_effector_pose[:3, 3]
+        pose = list(np.array(end_effector_pose[:3, 3]))
+
         return pose, rpy
 
     def inverse_kinematics(self, ee_pose, custom_guess=None):
@@ -255,7 +273,18 @@ class InterbotixArm:
                                                0.0001)
 
             # Check to make sure a solution was found and that no joint limits were violated
+            theta_list_orig = theta_list
             if success:
+                for x in range(len(theta_list)):
+                    if theta_list[x] <= -self.rev:
+                        theta_list[x] %= -self.rev
+                    elif theta_list[x] >= self.rev:
+                        theta_list[x] %= self.rev
+                    name = self.joint_names[x]
+                    if round(theta_list[x],3) < -round(math.pi,3):
+                        theta_list[x] += self.rev
+                    elif round(theta_list[x],3) > round(math.pi,3):
+                        theta_list[x] -= self.rev
                 solution_found = self.check_joint_limits(theta_list)
             else:
                 solution_found = False
