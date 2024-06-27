@@ -11,6 +11,10 @@ For information on creating your own environment, see [Creating Environments](cr
   - [Basic Avoidance](#basic-avoidance)
   - [Avoidance RAAD 2022](#avoidance-raad-2022)
   - [Avoidance RAAD 2022 Test](#avoidance-raad-2022-test)
+- [Interbotix Arms](#interbotix-arms)
+  - [Empty Environment](#empty-environment)
+  - [End Effector Positioning](#end-effector-positioning)
+  - [Basic Avoidance](#basic-avoidance)
 - [Mobile Industrial Robots Mir100](#mobile-industrial-robots-mir100)
   - [No Obstacle Navigation](#no-obstacle-navigation)
   - [Obstacle Avoidance](#obstacle-avoidance)
@@ -113,6 +117,68 @@ env = gym.make('AvoidanceRaad2022TestURRob-v0', ur_model='ur5', rs_address='<rob
 ```
 
 Same as [Avoidance RAAD 2022](#avoidance-raad-2022) but using a fixed set of 3D splines as obstacles trajectories. 
+
+# Interbotix Arms
+
+Available UR models: ReactorX-150, PincherX-150, ReactorX-200, ViperX-250, ViperX-300, WidowX-200, WidowX-250, PincherX-100, ViperX-300S, WidowX-250S
+
+To select the robot model use: `robot_model='<rx150, px150, rx200, vx250, vx300, wx200, wx250, px100, vx300s, wx250s>'`
+
+*General Warning*: When resetting the environment, in some cases the robot moves to a random initial position. When executing the command to move the robot to the desired position we simply forward the random joint positions to the robot controller, a collision free path is not ensured. Therefore when using the Real Robot environment the robot could go in self collision during the reset stage, please be cautious and always keep the emergency stop at end when operating the real robot. 
+## Empty Environment
+
+```python
+# simulated robot environment
+env = gym.make('EmptyEnvironmentInterbotixASim-v0', robot_model='wx250s', ip='<server_manager_address>')
+# real robot environment
+env = gym.make('EmptyEnvironmentInterbotixARob-v0', robot_model='wx250s', rs_address='<robot_server_address>')
+```
+
+This is the base Interbotix arm environment. This environment is not intended to be used as a standalone environment but rather as a starting point and base class to develop Interbotix arm environments. 
+
+The environment state includes: joint positions normalized with respect to the joint position limits and the joint velocities (rad/s).
+The reward is constant to 0. 
+
+The robot uses position control; therefore, an action in the environment consists
+of four, five or six (depending on robot model) normalized joint position values.
+
+## End Effector Positioning
+
+```python
+# simulated robot environment
+env = gym.make('EndEffectorPositioningInterbotixASim-v0', robot_model='wx250s', ip='<server_manager_address>')
+# real robot environment
+env = gym.make('EndEffectorPositioningInterbotixARob-v0', robot_model='wx250s', rs_address='<robot_server_address>')
+
+```
+
+The goal in this environment is for the robotic arm to reach a target position with its end effector.
+
+The target end effector positions are uniformly distributed across a semi-sphere of the size close to the full working area of the robot.
+Potential target points generated within the singularity areas of the working space are discarded.
+The starting position is a random robot configuration.
+
+The environment state includes: the 3D polar coordinates of the target position with respect to the end effector frame, joint positions normalized with respect to the joint position limits and the joint velocities (rad/s).
+
+The robot uses position control; therefore, an action in the environment consists
+of normalized joint position values.
+
+## Basic Avoidance 
+
+```python
+# simulated robot environment
+env = gym.make('BasicAvoidanceInterbotixASim-v0', robot_model='wx250s', ip='<server_manager_address>')
+# real robot environment
+env = gym.make('BasicAvoidanceInterbotixARob-v0', robot_model='wx250s', rs_address='<robot_server_address>')
+```
+
+The goal in this environment is for the robotic arm to keep a minimum distance (calculated from end effector and the elbow) to an obstacle moving vertically while keeping as close as possible to the initial joint configuration. 
+
+
+The environment state includes: the 3D polar coordinates of the obstacle with respect to the end effector frame and with respect to the forearm link frame, joint positions normalized with respect to the joint position limits and the difference between the joint positions and the initial joint configuration.
+
+An action in the environment consists in normalized joint position deltas from the initial joint configuration. 
+
 
 # Mobile Industrial Robots Mir100
 
