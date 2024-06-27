@@ -134,7 +134,7 @@ Same as [Avoidance RAAD 2022](#avoidance-raad-2022) but using a fixed set of 3D 
 
 # Interbotix Arms
 
-Available UR models: ReactorX-150, PincherX-150, ReactorX-200, ViperX-250, ViperX-300, WidowX-200, WidowX-250, PincherX-100, ViperX-300S, WidowX-250S
+Available Interbotix arm models: ReactorX-150, PincherX-150, ReactorX-200, ViperX-250, ViperX-300, WidowX-200, WidowX-250, PincherX-100, ViperX-300S, WidowX-250S
 
 To select the robot model use: `robot_model='<rx150, px150, rx200, vx250, vx300, wx200, wx250, px100, vx300s, wx250s>'`
 
