@@ -85,11 +85,6 @@ If you prefer, you can do a minimal install of the packaged version directly fro
 pip install robo-gym
 ```
 
-If you are using the UR arms, you will also require the ur_kinematics package, clone this to your workspace:
-```
-git clone https://github.com/montrealrobotics/ur_kinematics.git
-```
-
 <!-- omit in toc -->
 ## Robot Server Side
 **Requirements:** Ubuntu 20.04 (recommended) or 18.04.
@@ -140,6 +135,12 @@ To start a simulated environment with **GUI** use the optional *gui* argument:
 env = gym.make('EnvironmentNameSim-v0', ip='<server_manager_address>', gui=True)
 ```
 
+Some environmwnts require a robot_model argument, for example, for an Interbotix WidowX250s environment, the command would be:
+
+```
+env = gym.make('EnvironmentNameSim-v0', ip='<server_manager_address>', gui=True, robot_model='wx250s')
+```
+
 <!-- omit in toc -->
 ### Additional commands for Simulated Environments
 
@@ -186,6 +187,12 @@ env = gym.make('EnvironmentNameRob-v0', rs_address='<robot_server_address>')
 env.reset()
 ```
 The `<robot_server_address>` has to be formed as `IP:PORT`
+
+For an environment which requires a robot_model argument:
+
+```
+env = gym.make('EndEffectorPositioningInterbotixARob-v0', rs_address='<robot_server_address>', robot_model='wx250s')
+```
 
 # Environments 
 [back to top](#robo-gym)
