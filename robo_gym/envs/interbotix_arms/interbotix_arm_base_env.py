@@ -35,12 +35,14 @@ class InterbotixABaseEnv(gym.Env):
 
     """
     real_robot = False
-    max_episode_steps = 100
+    max_episode_steps = 10000000000
 
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_forearm_roll=False,
-                 fix_wrist_angle=False, fix_wrist_rotate=False, robot_model='rx150', rs_state_to_info=True, **kwargs):
+                 fix_wrist_angle=False, fix_wrist_rotate=False, robot_model='rx150', rs_state_to_info=True,
+                 normalize_joint_positions=False, **kwargs):
 
         self.interbotix = interbotix_utils.InterbotixArm(model=robot_model)
+        self.control_type = 'position'
         if self.interbotix.dof == 4:
             self.joint_list = ['base_joint_position', 'shoulder_joint_position', 'elbow_joint_position',
                                'wrist_angle_joint_position']
@@ -64,6 +66,7 @@ class InterbotixABaseEnv(gym.Env):
         self.elapsed_steps = 0
 
         self.rs_state_to_info = rs_state_to_info
+        self.normalize_joint_positions = normalize_joint_positions
 
         self.fix_base = fix_base
         self.fix_shoulder = fix_shoulder
@@ -181,13 +184,13 @@ class InterbotixABaseEnv(gym.Env):
         joint_positions_dict = self._get_joint_positions()
         
         joint_positions = np.array([joint_positions_dict.get(joint_pos) for joint_pos in joint_pos_names])
-
-        joints_position_norm = self.interbotix.normalize_joint_values(joints=joint_positions)
+        if self.normalize_joint_positions:
+            joints_positions = self.interbotix.normalize_joint_values(joints=joint_positions)
 
         temp = []
         for joint in range(len(self.fixed_joints)):
             if joint in fixed_joint_indices:
-                temp.append(joints_position_norm[joint])
+                temp.append(joints_positions[joint])
             else:
                 temp.append(action.pop(0))
         return np.array(temp)
@@ -195,8 +198,10 @@ class InterbotixABaseEnv(gym.Env):
     def env_action_to_rs_action(self, action) -> np.ndarray:
         """Convert environment action to Robot Server action"""
         rs_action = copy.deepcopy(action)
-        # Scale action
-        rs_action = np.multiply(rs_action, self.abs_joint_pos_range)
+
+        if self.normalize_joint_positions:
+            # Scale action
+            rs_action = np.multiply(rs_action, self.abs_joint_pos_range)
 
         # Convert action indexing from interbotix to ros
         rs_action = self.interbotix._interbotix_joint_list_to_ros_joint_list(rs_action)
@@ -210,11 +215,17 @@ class InterbotixABaseEnv(gym.Env):
         rs_action = []
         self.elapsed_steps += 1
 
-
         action = action.astype(np.float32)
 
         # Check if the action is contained in the action space
         if not self.action_space.contains(action):
+            if isinstance(self.action_space, gym.spaces.Box):
+                low = self.action_space.low
+                high = self.action_space.high
+                for i, value in enumerate(action):
+                    if value < low[i] or value > high[i]:
+                        print(f"Value {value} at index {i} is out of bounds ({low[i]}, {high[i]})")
+
             raise InvalidActionError()
 
         # Add missing joints which were fixed at initialization
@@ -231,8 +242,8 @@ class InterbotixABaseEnv(gym.Env):
         state = self._robot_server_state_to_env_state(rs_state)
 
         # Check if the environment state is contained in the observation space
-        if not self.observation_space.contains(state):
-            raise InvalidStateError()
+        # if not self.observation_space.contains(state):
+        #     raise InvalidStateError()
 
         self.rs_state = rs_state
 
@@ -338,14 +349,16 @@ class InterbotixABaseEnv(gym.Env):
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
 
-        if self.ee_target_pose.any():
-            rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
-            rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
-            rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
-            rs_state['object_0_to_ref_rotation_x'] = 0
-            rs_state['object_0_to_ref_rotation_y'] = 0
-            rs_state['object_0_to_ref_rotation_z'] = 0
-            rs_state['object_0_to_ref_rotation_w'] = 1
+        # if real robot we cant read object position as we can in gazebo
+        if self.real_robot:
+            if self.ee_target_pose.any():
+                rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
+                rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[1]
+                rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[2]
+                rs_state['object_0_to_ref_rotation_x'] = 0
+                rs_state['object_0_to_ref_rotation_y'] = 0
+                rs_state['object_0_to_ref_rotation_z'] = 0
+                rs_state['object_0_to_ref_rotation_w'] = 1
 
         if not len(keys) == len(rs_state.keys()):
             raise InvalidStateError("Robot Server state keys to not match. Different lengths.")
@@ -399,7 +412,8 @@ class InterbotixABaseEnv(gym.Env):
             joint_positions.append(rs_state[position])
         joint_positions = np.array(joint_positions)
         # Normalize joint position values
-        joint_positions = self.interbotix.normalize_joint_values(joints=joint_positions)
+        if self.normalize_joint_positions:
+            joint_positions = self.interbotix.normalize_joint_values(joints=joint_positions)
 
         # Joint Velocities
         joint_velocities = [] 
@@ -423,14 +437,21 @@ class InterbotixABaseEnv(gym.Env):
         """
         # Joint position range tolerance
         dof = self.interbotix.dof
-        pos_tolerance = np.full(dof, 0.1)
+        if self.normalize_joint_positions:
+            pos_tolerance = np.full(dof, 0.1)
 
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(dof, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(dof, -1.0), pos_tolerance)
-        # Joint velocities range 
-        max_joint_velocities = np.array([np.inf] * dof)
-        min_joint_velocities = -np.array([np.inf] * dof)
+            # Joint positions range used to determine if there is an error in the sensor readings
+            max_joint_positions = np.add(np.full(dof, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(dof, -1.0), pos_tolerance)
+            # Joint velocities range
+            max_joint_velocities = np.array([np.inf] * dof)
+            min_joint_velocities = -np.array([np.inf] * dof)
+        else:
+            max_joint_positions = self.interbotix.max_joint_positions
+            min_joint_positions = self.interbotix.min_joint_positions
+            max_joint_velocities = self.interbotix.max_joint_velocities
+            min_joint_velocities = self.interbotix.min_joint_velocities
+
         # Definition of environment observation_space
         max_obs = np.concatenate((max_joint_positions, max_joint_velocities))
         min_obs = np.concatenate((min_joint_positions, min_joint_velocities))
@@ -456,9 +477,18 @@ class InterbotixABaseEnv(gym.Env):
                  self.fix_wrist_rotate])
 
         num_control_joints = len(self.fixed_joints) - sum(self.fixed_joints)
-
-        return gym.spaces.Box(low=np.full(num_control_joints, -1.0), high=np.full(num_control_joints, 1.0),
-                              dtype=np.float32)
+        if self.normalize_joint_positions:
+            return gym.spaces.Box(low=np.full(num_control_joints, -1.0), high=np.full(num_control_joints, 1.0),
+                                  dtype=np.float32)
+        else:
+            if self.control_type == 'pwm':
+                return gym.spaces.Box(low=np.full(num_control_joints, self.interbotix.min_joint_pwm),
+                               high=np.full(num_control_joints, self.interbotix.max_joint_pwm),
+                               dtype=np.float32)
+            else:
+                max_joint_positions = self.interbotix.max_joint_positions
+                min_joint_positions = self.interbotix.min_joint_positions
+                return gym.spaces.Box(low=min_joint_positions, high=max_joint_positions, dtype=np.float32)
 
 
 class EmptyEnvironmentInterbotixASim(InterbotixABaseEnv, Simulation):

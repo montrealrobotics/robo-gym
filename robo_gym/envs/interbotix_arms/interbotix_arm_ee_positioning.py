@@ -8,9 +8,11 @@ from robo_gym.utils import utils
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2
 from robo_gym.envs.simulation_wrapper import Simulation
 from robo_gym.envs.interbotix_arms.interbotix_arm_base_env import InterbotixABaseEnv
+import math
 
 # waist, shoulder, elbow, forearm_roll, wrist_angle, wrist_rotate
-JOINT_POSITIONS_6DOF = [0.0757, 0.0074, 0.0122, -0.00011, 0.0058, -0.00076]
+# JOINT_POSITIONS_6DOF = [0.3, 0.0074, 0.0122, -0.00011, 0.0058, -0.00076]
+JOINT_POSITIONS_6DOF = [-0.3, 0.2074, 0.0122, -0.00011, 0.0058, -0.00076]
 JOINT_POSITIONS_5DOF = [0.1022, 0.0297, -0.00017, 0.00595, 0]
 JOINT_POSITIONS_4DOF = [0.1056, 0.0913, 0.00178, 0.0008]
 
@@ -19,7 +21,7 @@ RANDOM_JOINT_OFFSET_5DOF = [1.5, 0.25, 0.5, 1.0, 0.4]
 RANDOM_JOINT_OFFSET_6DOF = [1.5, 0.25, 0.5, 1.0, 0.4, 3.14]
 
 # distance to target that need to be reached
-DISTANCE_THRESHOLD = 0.1
+DISTANCE_THRESHOLD = 0.05
 
 
 class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
@@ -42,9 +44,10 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
     """
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_forearm_roll=False,
-                 fix_wrist_rotate=False, fix_wrist_angle=False, robot_model='rx150', rs_state_to_info=True, **kwargs):
+                 fix_wrist_rotate=False, fix_wrist_angle=False, robot_model='rx150', rs_state_to_info=True,
+                 normalize_joint_positions=False, **kwargs):
         super().__init__(rs_address, fix_base, fix_shoulder, fix_elbow, fix_forearm_roll, fix_wrist_angle,
-                         fix_wrist_rotate, robot_model, rs_state_to_info)
+                         fix_wrist_rotate, robot_model, rs_state_to_info, normalize_joint_positions)
 
         self.successful_ending = False
         self.last_position = np.zeros(self.interbotix.dof)
@@ -69,27 +72,44 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
         """
         # Joint position range tolerance
-        pos_tolerance = np.full(self.interbotix.dof, 0.1)
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(self.interbotix.dof, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(self.interbotix.dof, -1.0), pos_tolerance)
-        # Target coordinates range
+        if self.normalize_joint_positions:
+            pos_tolerance = np.full(self.interbotix.dof, 0.1)
+            # Joint positions range used to determine if there is an error in the sensor readings
+            max_joint_positions = np.add(np.full(self.interbotix.dof, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(self.interbotix.dof, -1.0), pos_tolerance)
+            max_joint_velocities = np.array([np.inf] * self.interbotix.dof)
+            min_joint_velocities = - np.array([np.inf] * self.interbotix.dof)
+            # Previous action
+            max_action = np.array([1.01] * self.interbotix.dof)
+            min_action = - np.array([1.01] * self.interbotix.dof)
+        else:
+            max_joint_positions = self.interbotix.max_joint_positions
+            min_joint_positions = self.interbotix.min_joint_positions
+            max_joint_velocities = self.interbotix.max_joint_velocities
+            min_joint_velocities = self.interbotix.min_joint_velocities
+            if self.control_type == 'pwm':
+                min_action = np.array(self.interbotix.min_joint_pwm)
+                max_action = np.array(self.interbotix.max_joint_pwm)
+            else:
+                max_action = np.array([math.pi] * self.interbotix.dof)
+                min_action = - np.array([math.pi] * self.interbotix.dof)
+
+         # Target coordinates range
         target_range = np.full(3, np.inf)
-        # Joint velocities range 
-        max_joint_velocities = np.array([np.inf] * self.interbotix.dof)
-        min_joint_velocities = - np.array([np.inf] * self.interbotix.dof)
+        # Joint velocities range
+
         # Cartesian coords of the target location
         max_target_coord = np.array([np.inf] * 3)
         min_target_coord = - np.array([np.inf] * 3)
         # Cartesian coords of the end effector
         max_ee_coord = np.array([np.inf] * 3)
         min_ee_coord = - np.array([np.inf] * 3)
-        # Previous action
-        max_action = np.array([1.01] * self.interbotix.dof)
-        min_action = - np.array([1.01] * self.interbotix.dof)
+
         # Definition of environment observation_space
-        max_obs = np.concatenate((target_range, max_joint_positions, max_joint_velocities, max_target_coord, max_ee_coord, max_action))
-        min_obs = np.concatenate((-target_range, min_joint_positions, min_joint_velocities, min_target_coord, min_ee_coord, min_action))
+        max_obs = np.concatenate((target_range, max_joint_positions, max_joint_velocities, max_target_coord,
+                                  max_ee_coord, max_action))
+        min_obs = np.concatenate((-target_range, min_joint_positions, min_joint_velocities, min_target_coord,
+                                  min_ee_coord, min_action))
 
         return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float32)
 
@@ -150,8 +170,10 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         for position in joint_positions_keys:
             joint_positions.append(rs_state[position])
         joint_positions = np.array(joint_positions)
+
         # Normalize joint position values
-        joint_positions = self.interbotix.normalize_joint_values(joints=joint_positions)
+        if self.normalize_joint_positions:
+            joint_positions = self.interbotix.normalize_joint_values(joints=joint_positions)
 
         # Joint Velocities
         joint_velocities = [] 
@@ -301,12 +323,14 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         # Set initial robot joint positions
         self._set_joint_positions(joint_positions)
 
+        self.previous_action = joint_positions
+
         # Update joint positions in rs_state
         rs_state.update(self.joint_positions)
         self.ee_target_pose = ee_target_pose
 
         # Set target End Effector pose
-        if self.ee_target_pose:
+        if self.ee_target_pose is not None:
             assert len(self.ee_target_pose) == 6
         else:
             self.ee_target_pose = self._get_target_pose()
@@ -329,13 +353,24 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
         # Check if the environment state is contained in the observation space
         if not self.observation_space.contains(state):
+            if isinstance(self.observation_space, gym.spaces.Box):
+                low = self.observation_space.low
+                high = self.observation_space.high
+                for i, value in enumerate(state):
+                    if value < low[i] or value > high[i]:
+                        print(f"Value {value} at index {i} is out of bounds ({low[i]}, {high[i]})")
             raise InvalidStateError()
         
         # Check if current position is in the range of the initial joint positions
-        for joint in self.joint_positions.keys():
-            if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.15):
-                raise InvalidStateError('Reset joint positions are not within defined range')
-            
+        # for joint in self.joint_positions.keys():
+        #     if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.15):
+        #         raise InvalidStateError('Reset joint positions are not within defined range')
+
+        # set control type to pwm after resetting arm
+        # self.control_type = 'pwm'
+        # self.action_space = self._get_action_space()
+        # self.observation_space = self._get_observation_space()
+
         return state
 
     def step(self, action) -> Tuple[np.array, float, bool, dict]:
@@ -343,9 +378,8 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
             action = np.array(action)
 
         action = action.astype(np.float32)
-        
-        state, reward, done, info = super().step(action)
         self.previous_action = self.add_fixed_joints(action)
+        state, reward, done, info = super().step(action)
 
         if done:
             if info['final_status'] == 'success':
@@ -386,11 +420,11 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         if not self.check_safety_conditions(action):
             reward += -1
 
-        if euclidean_dist_3d <= DISTANCE_THRESHOLD:
-            reward = g_w * 1
-            done = True
-            info['final_status'] = 'success'
-            info['target_coord'] = target_coord
+        # if euclidean_dist_3d <= DISTANCE_THRESHOLD:
+        #     reward = g_w * 1
+        #     done = True
+        #     info['final_status'] = 'success'
+        #     info['target_coord'] = target_coord
 
         # if rs_state['in_collision']:
         #     reward = c_w * 1

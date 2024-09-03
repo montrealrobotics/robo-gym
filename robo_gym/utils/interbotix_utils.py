@@ -66,12 +66,16 @@ class InterbotixArm:
         self.min_joint_positions = np.zeros(self.dof)
         self.max_joint_velocities = np.zeros(self.dof)
         self.min_joint_velocities = np.zeros(self.dof)
+        self.max_joint_pwm = np.zeros(self.dof)
+        self.min_joint_pwm = np.zeros(self.dof)
 
         for idx, joint in enumerate(self.joint_names):
             self.max_joint_positions[idx] = p["joint_limits"][joint]["max_position"] 
             self.min_joint_positions[idx] = p["joint_limits"][joint]["min_position"]
             self.max_joint_velocities[idx] = p["joint_limits"][joint]["max_velocity"]
             self.min_joint_velocities[idx] = -p["joint_limits"][joint]["max_velocity"]
+            self.max_joint_pwm[idx] = 885
+            self.min_joint_pwm[idx] = -885
 
         # Workspace parameters
         self.ws_r = p["workspace_area"]["r"]
