@@ -415,10 +415,11 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         euclidean_dist_3d = np.linalg.norm(target_coord - ee_coord)
 
         # Reward base
-        reward += np.exp(-d_w*euclidean_dist_3d) # b/w 0 and 1 (positive reinforcement )
+        # reward += np.exp(-d_w*euclidean_dist_3d) # b/w 0 and 1 (positive reinforcement )
+        reward = - euclidean_dist_3d
 
-        if not self.check_safety_conditions(action):
-            reward += -1
+        # if not self.check_safety_conditions(action):
+        #     reward += -1
 
         # if euclidean_dist_3d <= DISTANCE_THRESHOLD:
         #     reward = g_w * 1
@@ -432,10 +433,10 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         #     info['final_status'] = 'collision'
         #     info['target_coord'] = target_coord
 
-        elif self.elapsed_steps >= self.max_episode_steps:
-            done = True
-            info['final_status'] = 'max_steps_exceeded'
-            info['target_coord'] = target_coord
+        # elif self.elapsed_steps >= self.max_episode_steps:
+        #     done = True
+        #     info['final_status'] = 'max_steps_exceeded'
+        #     info['target_coord'] = target_coord
         
         return reward, done, info
 
