@@ -33,7 +33,9 @@ register(
     id="ObstacleAvoidanceMir100Rob-v0",
     entry_point="robo_gym.envs:ObstacleAvoidanceMir100Rob",
 )
+
 # Interbotix arm environments
+
 register(
     id='EmptyEnvironmentInterbotixASim-v0',
     entry_point='robo_gym.envs:EmptyEnvironmentInterbotixASim',
@@ -63,7 +65,9 @@ register(
     id='BasicAvoidanceInterbotixARob-v0',
     entry_point='robo_gym.envs:BasicAvoidanceInterbotixARob',
 )
+
 # UR Environments
+
 register(
     id="EmptyEnvironmentURSim-v0",
     entry_point="robo_gym.envs:EmptyEnvironmentURSim",
@@ -169,6 +173,12 @@ register(
 register(
     id="IsaacReachPandaSim-v0",
     entry_point="robo_gym.envs:IsaacReachPandaSim",
+)
+
+register(
+    id="IsaacReachPandaRob-v0",
+    entry_point="robo_gym.envs:IsaacReachPandaRob",
+)
 
 # Interbotix rover environments
 
@@ -178,6 +188,7 @@ register(
 )
 
 register(
-    id="IsaacReachPandaRob-v0",
-    entry_point="robo_gym.envs:IsaacReachPandaRob",
+    id='EmptyEnvironmentInterbotixRRob-v0',
+    entry_point='robo_gym.envs:EmptyEnvironmentInterbotixRRob',
 )
+
