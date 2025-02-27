@@ -59,3 +59,5 @@ from robo_gym.envs.interbotix_arms.interbotix_arm_avoidance_basic import (
     BasicAvoidanceInterbotixARob
 )
 
+# Interbotix Rover
+from robo_gym.envs.interbotix_rover.interbotix_rover_base_env import EmptyEnvironmentInterbotixRSim, EmptyEnvironmentInterbotixRRob

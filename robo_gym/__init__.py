@@ -156,7 +156,6 @@ register(
     entry_point="robo_gym.envs:EmptyEnvironmentPandaRob",
 )
 
-
 register(
     id="EndEffectorPositioningPandaSim-v0",
     entry_point="robo_gym.envs:EndEffectorPositioningPandaSim",
@@ -166,9 +165,16 @@ register(
     id="EndEffectorPositioningPandaRob-v0",
     entry_point="robo_gym.envs:EndEffectorPositioningPandaRob",
 )
+
 register(
     id="IsaacReachPandaSim-v0",
     entry_point="robo_gym.envs:IsaacReachPandaSim",
+
+# Interbotix rover environments
+
+register(
+    id='EmptyEnvironmentInterbotixRSim-v0',
+    entry_point='robo_gym.envs:EmptyEnvironmentInterbotixRSim',
 )
 
 register(
