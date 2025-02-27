@@ -114,6 +114,9 @@ register(
     entry_point='robo_gym.envs:AvoidanceRaad2022TestURRob',
 )
 
-
-
+# Interbotix rover environments
+register(
+    id='EmptyEnvironmentInterbotixRSim-v0',
+    entry_point='robo_gym.envs:EmptyEnvironmentInterbotixRSim',
+)
 

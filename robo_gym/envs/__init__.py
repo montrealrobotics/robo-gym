@@ -17,3 +17,5 @@ from robo_gym.envs.interbotix_arms.interbotix_arm_base_env import EmptyEnvironme
 from robo_gym.envs.interbotix_arms.interbotix_arm_ee_positioning import EndEffectorPositioningInterbotixASim, EndEffectorPositioningInterbotixARob
 from robo_gym.envs.interbotix_arms.interbotix_arm_avoidance_basic import BasicAvoidanceInterbotixASim, BasicAvoidanceInterbotixARob
 
+# Interbotix Rover
+from robo_gym.envs.interbotix_rover.interbotix_rover_base_env import EmptyEnvironmentInterbotixRSim, EmptyEnvironmentInterbotixRRob
