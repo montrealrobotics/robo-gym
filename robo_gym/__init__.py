@@ -120,3 +120,8 @@ register(
     entry_point='robo_gym.envs:EmptyEnvironmentInterbotixRSim',
 )
 
+register(
+    id='EmptyEnvironmentInterbotixRRob-v0',
+    entry_point='robo_gym.envs:EmptyEnvironmentInterbotixRRob',
+)
+
