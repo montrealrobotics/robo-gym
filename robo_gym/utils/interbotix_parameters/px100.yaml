@@ -19,7 +19,7 @@ joint_limits:
     has_position_limits: true
     has_velocity_limits: true
     max_position: 3.14159
-    max_velocity: 0.2
+    max_velocity: 2.35
     min_position: -3.14159
   shoulder:
     # acceleration limits are not publicly available
@@ -28,7 +28,7 @@ joint_limits:
     has_position_limits: true
     has_velocity_limits: true
     max_position: 1.8675
-    max_velocity: 0.2
+    max_velocity: 2.35
     min_position: -1.93732
   elbow:
     # acceleration limits are not publicly available
@@ -37,7 +37,7 @@ joint_limits:
     has_position_limits: true
     has_velocity_limits: true
     max_position: 1.6057
-    max_velocity: 0.2
+    max_velocity: 2.35
     min_position: -2.11185
   wrist_angle:
     # acceleration limits are not publicly available
@@ -46,5 +46,5 @@ joint_limits:
     has_position_limits: true
     has_velocity_limits: true
     max_position: 3.14159
-    max_velocity: 0.2
+    max_velocity: 2.35
     min_position: -3.14159
