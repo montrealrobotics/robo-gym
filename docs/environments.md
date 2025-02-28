@@ -15,6 +15,8 @@ For information on creating your own environment, see [Creating Environments](cr
   - [Empty Environment](#empty-environment)
   - [End Effector Positioning](#end-effector-positioning)
   - [Basic Avoidance](#basic-avoidance)
+- [Interbotix Rover](#interbotix-rover)
+  - [Empty Environment](#empty-environment)
 - [Mobile Industrial Robots Mir100](#mobile-industrial-robots-mir100)
   - [No Obstacle Navigation](#no-obstacle-navigation)
   - [Obstacle Avoidance](#obstacle-avoidance)
@@ -25,6 +27,7 @@ Available UR models: UR3, UR3e, UR5, UR5e, UR10, UR10e, UR16
 To select the robot model use: `ur_model='<ur3, ur3e, ur5, ur5e, ur10, ur10e, ur16e>'`
 
 *General Warning*: When resetting the environment, in some cases the robot moves to a random initial position. When executing the command to move the robot to the desired position we simply forward the random joint positions to the robot controller, a collision free path is not ensured. Therefore when using the Real Robot environment the robot could go in self collision during the reset stage, please be cautious and always keep the emergency stop at end when operating the real robot. 
+
 ## Empty Environment
 
 ```python
@@ -139,6 +142,7 @@ Available Interbotix arm models: ReactorX-150, PincherX-150, ReactorX-200, Viper
 To select the robot model use: `robot_model='<rx150, px150, rx200, vx250, vx300, wx200, wx250, px100, vx300s, wx250s>'`
 
 *General Warning*: When resetting the environment, in some cases the robot moves to a random initial position. When executing the command to move the robot to the desired position we simply forward the random joint positions to the robot controller, a collision free path is not ensured. Therefore when using the Real Robot environment the robot could go in self collision during the reset stage, please be cautious and always keep the emergency stop at end when operating the real robot. 
+
 ## Empty Environment
 
 ```python
@@ -193,6 +197,30 @@ The environment state includes: the 3D polar coordinates of the obstacle with re
 
 An action in the environment consists in normalized joint position deltas from the initial joint configuration. 
 
+# Interbotix Rover
+
+Available Interbotix rover/locobot models: locobot_wx250s, locobot_px100, locobot_wx200.
+
+To select the robot model use: `robot_model='<locobot_wx250s, locobot_px100, locobot_wx200>'`
+
+*General Warning*: When resetting the environment, in some cases the robot arm moves to a random initial position. When executing the command to move the robot arm to the desired position we simply forward the random joint positions to the robot controller, a collision free path is not ensured. Therefore when using the Real Robot environment the robot could go in self collision during the reset stage, please be cautious and always keep the emergency stop at end when operating the real robot. 
+
+## Empty Environment
+
+```python
+# simulated robot environment
+env = gym.make('EmptyEnvironmentInterbotixRSim-v0', robot_model='locobot_wx250s', ip='<server_manager_address>')
+# real robot environment
+env = gym.make('EmptyEnvironmentInterbotixRRob-v0', robot_model='locobot_wx250s', rs_address='<robot_server_address>')
+```
+
+This is the base Interbotix Rover environment. This environment is not intended to be used as a standalone environment but rather as a starting point and base class to develop Interbotix rover environments. 
+
+The environment state includes: joint positions joint velocities (rad/s) (for both arm joints and the two base wheels) as well as the odom pose information for the locobot base.
+The reward is constant to 0. 
+
+The robot uses position control; therefore, an action in the environment consists
+of four, five or six (depending on robot model) joint position values followed by a linear velocity command (x) and a rotational velocity command (z) for the base.
 
 # Mobile Industrial Robots Mir100
 
