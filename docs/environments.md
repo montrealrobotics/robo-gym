@@ -200,6 +200,8 @@ env = gym.make('EmptyEnvironmentInterbotixRSim-v0', robot_model='locobot_wx250s'
 env = gym.make('EmptyEnvironmentInterbotixRRob-v0', robot_model='locobot_wx250s', rs_address='<robot_server_address>')
 ```
 
+<img src="https://github.com/user-attachments/assets/3817c0a3-3c6a-4c2b-8fe9-8ae654e21c3a" width="300" height="200">
+
 This is the base Interbotix Rover environment. This environment is not intended to be used as a standalone environment but rather as a starting point and base class to develop Interbotix rover environments. 
 
 The environment state includes: joint positions joint velocities (rad/s) (for both arm joints and the two base wheels) as well as the odom pose information for the locobot base.
