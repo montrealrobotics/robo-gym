@@ -135,7 +135,7 @@ To start a simulated environment with **GUI** use the optional *gui* argument:
 env = gym.make('EnvironmentNameSim-v0', ip='<server_manager_address>', gui=True)
 ```
 
-Some environmwnts require a robot_model argument, for example, for an Interbotix WidowX250s environment, the command would be:
+Some environments require a robot_model argument, for example, for an Interbotix WidowX250s environment, the command would be:
 
 ```
 env = gym.make('EnvironmentNameSim-v0', ip='<server_manager_address>', gui=True, robot_model='wx250s')
@@ -175,7 +175,7 @@ env = ExceptionHandling(env)
 <!-- omit in toc -->
 ## Real Robot Environments
 
-When making a real robot environment the Robot Server needs to be started manually, see [here](https://github.com/jr-robotics/robo-gym-robot-servers#how-to-use) how to do that.  
+When making a real robot environment the Robot Server needs to be started manually, see [here](https://github.com/montrealrobotics/robo-gym-robot-servers#how-to-use) how to do that.  
 
 Once the Real Robot Server is running, you can start the corresponding environment with: 
 
@@ -204,9 +204,33 @@ For information on creating your own environments, see [Creating your own Enviro
 # Examples
 [back to top](#robo-gym)
 
-<!-- omit in toc -->
+## Random Agent Locobot Simulation Environment
+
+```python
+import gym
+import robo_gym
+
+target_machine_ip = '127.0.0.1' # or other machine 'xxx.xxx.xxx.xxx'
+robot_model = 'locobot_wx250s'
+
+# initialize environment
+env = gym.make('EmptyEnvironmentInterbotixRSim-v0', ip=target_machine_ip, gui=True robot_model=robot_model)
+
+num_episodes = 10
+
+# Arm joints in reset pose and a velocity in x for the base.
+action = [0.0757, 0.0074, 0.0122, -0.00011, 0.0058, -0.00076, 0.1, 0]
+
+for episode in range(num_episodes):
+    done = False
+    env.reset()
+    while not done:
+        state, reward, done, info = env.step(action)
+```
+
+
 ## Random Agent MiR100 Simulation Environment
-<!-- TODO change this to UR env -->
+
 ```python
 import gym
 import robo_gym
@@ -281,8 +305,8 @@ Once you are done run `kill-server-manager` to kill the Robot Server and the Ser
 
 If you encounter troubles running robo-gym please take a look at the [existing issues](https://github.com/jr-robotics/robo-gym/issues?q=is%3Aissue++), if you still cannot find solution to your problem please submit a [new issue](https://github.com/jr-robotics/robo-gym/issues/new/).
 
-[Troubleshooting robo-gym-robot-servers](https://github.com/jr-robotics/robo-gym-robot-servers#troubleshooting)
-[Troubleshooting robo-gym-server-modules](https://github.com/jr-robotics/robo-gym-server-modules#troubleshooting)
+[Troubleshooting robo-gym-robot-servers](https://github.com/montrealrobotics/robo-gym-robot-servers#troubleshooting)
+[Troubleshooting robo-gym-server-modules](https://github.com/montrealrobotics/robo-gym-server-modules#troubleshooting)
 
 # Contributing
 [back to top](#robo-gym)
