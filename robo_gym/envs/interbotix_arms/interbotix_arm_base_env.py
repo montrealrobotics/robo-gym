@@ -464,7 +464,6 @@ class InterbotixABaseEnv(gym.Env):
 class EmptyEnvironmentInterbotixASim(InterbotixABaseEnv, Simulation):
     cmd = "roslaunch interbotix_arm_robot_server interbotix_arm_robot_server.launch \
         world_name:=empty.world \
-        reference_frame:=base_link \
         max_velocity_scale_factor:=0.2 \
         action_cycle_rate:=20 \
         rviz_gui:=false \
