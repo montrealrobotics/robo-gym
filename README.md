@@ -102,6 +102,28 @@ and/or on other multiple machines.
 Install [robo-gym-robot-servers](https://github.com/montrealrobotics/robo-gym-robot-servers)
 following the instructions in the repository's README.
 
+# Docker
+Robo-gym and/or the robot servers can be run in a docker container. See the [robo-gym-robo-servers](https://github.com/montrealrobotics/robo-gym-robot-servers) repository for how to start the server in a docker.
+To build the image:
+```
+sudo docker build -t robogym .
+```
+This should be run in the terminal where you launch the container to giev docker access to the X server for graphical output.
+```
+xhost +local:docker
+```
+
+
+Then start a container:
+```
+sudo docker compose up -d
+```
+
+A session can be started in the container with:
+```
+sudo docker exec -it -e DISPLAY=$DISPLAY robogym bash
+```
+
 # How to use
 [back to top](#robo-gym)
 

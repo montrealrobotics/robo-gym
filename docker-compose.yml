@@ -1,0 +1,14 @@
+services:
+  robogym:
+    container_name: robogym
+    image: robogym
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev/bus/usb:/dev/bus/usb
+    network_mode: "host"
+    environment:
+      - DISPLAY=${DISPLAY}
+    privileged: true
+    stdin_open: true
+    tty: true
+    command: bash
