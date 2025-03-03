@@ -71,7 +71,7 @@ class InterbotixABaseEnv(gym.Env):
         self.fix_forearm_roll = fix_forearm_roll
         self.fix_wrist_angle = fix_wrist_angle
         self.fix_wrist_rotate = fix_wrist_rotate
-        self.ee_target_pose = []
+        self.ee_target_pose = np.array([])
 
         self.observation_space = self._get_observation_space()
         self.action_space = self._get_action_space()
@@ -149,7 +149,7 @@ class InterbotixABaseEnv(gym.Env):
 
         # Check if current position is in the range of the initial joint positions
         for joint in self.joint_positions.keys():
-            if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.05):
+            if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.1):
                 raise InvalidStateError('Reset joint positions are not within defined range')
 
         self.rs_state = rs_state
