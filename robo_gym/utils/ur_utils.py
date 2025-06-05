@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 
 import numpy as np
+from numpy.typing import NDArray
 import yaml
-import os  
+import os
 import copy
 import math
 from random import randint
 from robo_gym.utils import ur_kinematics
 
 
-class UR:
-    """Universal Robots utilities class.
+from robo_gym.utils.manipulator_model import *
+
+
+class UR(ManipulatorModel):
+    """Universal Robots model class.
 
     Attributes:
         max_joint_positions (np.array): Maximum joint position values (rad)`.
@@ -23,23 +27,19 @@ class UR:
     [elbow_joint, shoulder_lift_joint, shoulder_pan_joint, wrist_1_joint, wrist_2_joint,
      wrist_3_joint]
 
-    NOTE: Where not specified, Standard Indexing is used. 
+    NOTE: Where not specified, Standard Indexing is used.
     """
 
-    def __init__(self, model):
+    def __init__(self, model_key: str):
 
-        assert model in ["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e"]
+        assert model_key in ["ur3", "ur3e", "ur5", "ur5e", "ur10", "ur10e", "ur16e"]
 
-        file_name = model + ".yaml"
-        file_path = os.path.join(os.path.dirname(__file__), 'ur_parameters', file_name)
+        self.model = model_key
 
-        # Load robot paramters
-        with open(file_path, 'r') as stream:
-            try:
-                p = yaml.safe_load(stream)
-            except yaml.YAMLError as exc:
-                print(exc) 
+        file_name = model_key + ".yaml"
+        file_path = os.path.join(os.path.dirname(__file__), "ur_parameters", file_name)
 
+        super().__init__(model_key, file_path)
         # Joint Names (Standard Indexing):
         self.joint_names = ["shoulder_pan", "shoulder_lift", "elbow_joint", \
                          "wrist_1", "wrist_2", "wrist_3"]
@@ -52,11 +52,10 @@ class UR:
         self.max_joint_velocities = np.zeros(self.number_of_joints)
         self.min_joint_velocities = np.zeros(self.number_of_joints)
 
-        for idx,joint in enumerate(self.joint_names):
-            self.max_joint_positions[idx] = p["joint_limits"][joint]["max_position"] 
-            self.min_joint_positions[idx] = p["joint_limits"][joint]["min_position"]
-            self.max_joint_velocities[idx] = p["joint_limits"][joint]["max_velocity"]
-            self.min_joint_velocities[idx] = -p["joint_limits"][joint]["max_velocity"]
+    def _swap_base_and_elbow(self, thetas: NDArray) -> NDArray:
+        return np.array(
+            [thetas[2], thetas[1], thetas[0], thetas[3], thetas[4], thetas[5]]
+        )
 
         # Workspace parameters
         self.ws_r = p["workspace_area"]["r"]
@@ -165,7 +164,7 @@ class UR:
 
         return pose
 
-    def _ros_joint_list_to_ur_joint_list(self, ros_thetas):
+    def reorder_joints_from_rs(self, ros_thetas):
         """Transform joint angles list from ROS indexing to standard indexing.
 
         Rearrange a list containing the joints values from the joint indexes used
@@ -180,9 +179,9 @@ class UR:
 
         """
 
-        return np.array([ros_thetas[2],ros_thetas[1],ros_thetas[0],ros_thetas[3],ros_thetas[4],ros_thetas[5]])
+        return self._swap_base_and_elbow(ros_thetas)
 
-    def _ur_joint_list_to_ros_joint_list(self,  thetas):
+    def reorder_joints_for_rs(self, thetas):
         """Transform joint angles list from standard indexing to ROS indexing.
 
         Rearrange a list containing the joints values from the standard joint indexing
@@ -197,7 +196,7 @@ class UR:
 
         """
 
-        return np.array([thetas[2],thetas[1],thetas[0],thetas[3],thetas[4],thetas[5]])
+        return self._swap_base_and_elbow(thetas)
 
     def check_ee_pose_in_workspace(self, joints):
         kin_model = ur_kinematics.kinematics_model(ur_model='ur5', gripper_offset=0)
