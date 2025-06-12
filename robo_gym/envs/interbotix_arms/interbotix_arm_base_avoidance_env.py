@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import copy
 import numpy as np
-import gym
+import gymnasium as gym
 from scipy.spatial.transform import Rotation as R
 from robo_gym.utils import utils
+from typing import Tuple, Any
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2
 from robo_gym.utils.exceptions import InvalidStateError, RobotServerError
 from robo_gym.envs.interbotix_arms.interbotix_arm_base_env import InterbotixABaseEnv
@@ -71,7 +72,9 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
                                            state_dict=rs_state)
         return state_msg
 
-    def reset(self, joint_positions=JOINT_POSITIONS_5DOF, fixed_object_position=None) -> np.ndarray:
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         """Environment reset.
 
         Args:
@@ -82,7 +85,19 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
             np.array: Environment state.
 
         """        
+        super(InterbotixABaseEnv, self).reset(seed=seed)
+
         self.elapsed_steps = 0
+        if options is None:
+            options = {}
+        joint_positions = (
+            options["joint_positions"] if "joint_positions" in options else None
+        )
+        fixed_object_position = (
+            options["fixed_object_position"]
+            if "fixed_object_position" in options
+            else None
+        )
 
         # Initialize environment state
         state_len = self.observation_space.shape[0]
@@ -102,7 +117,8 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
         rs_state.update(self.joint_positions)
 
         # Set initial state of the Robot Server
-        state_msg = self._set_initial_robot_server_state(rs_state, fixed_object_position)
+        state_msg = self._set_initial_robot_server_state(
+            rs_state, fixed_object_position)
 
         if not self.client.set_state_msg(state_msg):
             raise RobotServerError("set_state")
@@ -127,7 +143,7 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
 
         self.rs_state = rs_state
 
-        return state
+        return state, {}
 
     def _robot_server_state_to_env_state(self, rs_state) -> np.ndarray:
         """Transform state from Robot Server to environment format.

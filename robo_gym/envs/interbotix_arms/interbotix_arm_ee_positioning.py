@@ -1,7 +1,7 @@
 import copy
 import numpy as np
-import gym
-from typing import Tuple
+import gymnasium as gym
+from typing import Tuple, Any
 from scipy.spatial.transform import Rotation as R
 from robo_gym.utils.exceptions import InvalidStateError, RobotServerError
 from robo_gym.utils import utils
@@ -265,7 +265,9 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
             ]
         return rs_state_keys
 
-    def reset(self, joint_positions=None, ee_target_pose=None, randomize_start=False, continue_on_success=False) -> np.ndarray:
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         """Environment reset.
 
         Args:
@@ -274,6 +276,22 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
             randomize_start (bool): if True the starting position is randomized defined by the RANDOM_JOINT_OFFSET
             continue_on_success (bool): if True the next robot will continue from it current position when last episode was a success
         """
+        super(InterbotixABaseEnv, self).reset(seed=seed, options=options)
+
+        if options is None:
+            options = {}
+        joint_positions = (
+            options["joint_positions"] if "joint_positions" in options else None
+        )
+        ee_target_pose = (
+            options["ee_target_pose"] if "ee_target_pose" in options else None
+        )
+        randomize_start = (
+            options["randomize_start"] if "randomize_start" in options else None
+        )
+        continue_on_success = (
+            options["continue_on_success"] if "continue_on_success" in options else None
+        )
 
         if joint_positions: 
             assert len(joint_positions) == self.interbotix.dof
@@ -336,7 +354,7 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
             if not np.isclose(self.joint_positions[joint], rs_state[joint], atol=0.15):
                 raise InvalidStateError('Reset joint positions are not within defined range')
             
-        return state
+        return state, {}
 
     def step(self, action) -> Tuple[np.array, float, bool, dict]:
         if type(action) == list:
@@ -344,7 +362,7 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
         action = action.astype(np.float32)
         
-        state, reward, done, info = super().step(action)
+        state, reward, done, truncated, info = super().step(action)
         self.previous_action = self.add_fixed_joints(action)
 
         if done:
@@ -359,7 +377,7 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
                 joint_positions = np.array(joint_positions)
                 self.last_position = joint_positions
 
-        return state, reward, done, info
+        return state, reward, done, truncated,info
 
     def reward(self, rs_state, action) -> Tuple[float, bool, dict]:
         reward = 0

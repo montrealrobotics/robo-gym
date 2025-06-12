@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import copy
 import numpy as np
-import gym
-from typing import Tuple
+import gymnasium as gym
+from typing import Tuple, Any
 from robo_gym.utils import interbotix_utils
 from robo_gym.utils.exceptions import InvalidStateError, RobotServerError, InvalidActionError
 import robo_gym_server_modules.robot_server.client as rs_client
@@ -95,7 +95,9 @@ class InterbotixABaseEnv(gym.Env):
                                            string_params=string_params, state_dict=rs_state)
         return state_msg
 
-    def reset(self, joint_positions=None) -> np.ndarray:
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[np.ndarray, dict[str, Any]]:
         """Environment reset.
 
         Args:
@@ -105,6 +107,13 @@ class InterbotixABaseEnv(gym.Env):
             np.array: Environment state.
 
         """
+        super().reset(seed=seed)
+        if options is None:
+            options = {}
+        joint_positions = (
+            options["joint_positions"] if "joint_positions" in options else None
+        )
+
         if joint_positions: 
             assert len(joint_positions) == 6
         else:
@@ -154,7 +163,7 @@ class InterbotixABaseEnv(gym.Env):
 
         self.rs_state = rs_state
 
-        return state
+        return state, {}
 
     def reward(self, rs_state, action) -> Tuple[float, bool, dict]:
         done = False
@@ -243,7 +252,7 @@ class InterbotixABaseEnv(gym.Env):
         if self.rs_state_to_info:
             info['rs_state'] = self.rs_state
 
-        return state, reward, done, info
+        return state, reward, done, False, info
 
     def get_rs_state(self):
         return self.rs_state

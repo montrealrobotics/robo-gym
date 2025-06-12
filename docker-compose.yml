@@ -1,5 +1,6 @@
 services:
   robogym:
+    build: .
     container_name: robogym
     image: robogym
     volumes:
