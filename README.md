@@ -221,7 +221,7 @@ target_machine_ip = '127.0.0.1' # or other machine 'xxx.xxx.xxx.xxx'
 robot_model = 'locobot_wx250s'
 
 # initialize environment
-env = gym.make('EmptyEnvironmentInterbotixRSim-v0', ip=target_machine_ip, gui=True robot_model=robot_model)
+env = gym.make('EmptyEnvironmentInterbotixRSim-v0', ip=target_machine_ip, gui=True, robot_model=robot_model)
 
 num_episodes = 10
 
@@ -234,32 +234,6 @@ for episode in range(num_episodes):
     while not done:
         state, reward, done, info = env.step(action)
 ```
-
-
-## Random Agent MiR100 Simulation Environment
-
-```python
-import gym
-import robo_gym
-
-target_machine_ip = '127.0.0.1' # or other machine 'xxx.xxx.xxx.xxx'
-robot_model = 'locobot_wx250s'
-
-# initialize environment
-env = gym.make('EmptyEnvironmentInterbotixRSim-v0', ip=target_machine_ip, gui=True robot_model=robot_model)
-
-num_episodes = 10
-
-# Arm joints in reset pose and a velocity in x for the base.
-action = [0.0757, 0.0074, 0.0122, -0.00011, 0.0058, -0.00076, 0.1, 0]
-
-for episode in range(num_episodes):
-    done = False
-    env.reset()
-    while not done:
-        state, reward, done, info = env.step(action)
-```
-
 
 ## Random Agent MiR100 Simulation Environment
 
@@ -281,7 +255,6 @@ for episode in range(num_episodes):
         # random step in the environment
         state, reward, done, info = env.step(env.action_space.sample())
 ```
-
 
 
 Additional examples can be found [here](docs/examples)
