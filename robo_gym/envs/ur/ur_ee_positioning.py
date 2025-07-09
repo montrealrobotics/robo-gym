@@ -52,6 +52,7 @@ class EndEffectorPositioningUR(URBaseEnv):
         ur_model="ur5",
         rs_state_to_info=True,
         restrict_wrist_1=True,
+        normalize_joint_values=False,
         **kwargs,
     ):
         super().__init__(
@@ -64,6 +65,7 @@ class EndEffectorPositioningUR(URBaseEnv):
             fix_wrist_3,
             ur_model,
             rs_state_to_info,
+            normalize_joint_values,
         )
 
         self.restrict_wrist_1 = restrict_wrist_1
@@ -80,14 +82,24 @@ class EndEffectorPositioningUR(URBaseEnv):
         """
         # Joint position range tolerance
         pos_tolerance = np.full(6, 0.1)
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+            # Joint velocities range
+            max_joint_velocities = np.array([np.inf] * 6)
+            min_joint_velocities = -np.array([np.inf] * 6)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.ur.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.ur.min_joint_positions, pos_tolerance)
+            max_joint_velocities = self.ur.max_joint_velocities
+            min_joint_velocities = self.ur.min_joint_velocities
+
         # Target coordinates range
         target_range = np.full(3, np.inf)
-        # Joint velocities range
-        max_joint_velocities = np.array([np.inf] * 6)
-        min_joint_velocities = -np.array([np.inf] * 6)
+
         # Cartesian coords of the target location
         max_target_coord = np.array([np.inf] * 3)
         min_target_coord = -np.array([np.inf] * 3)
@@ -95,8 +107,8 @@ class EndEffectorPositioningUR(URBaseEnv):
         max_ee_coord = np.array([np.inf] * 3)
         min_ee_coord = -np.array([np.inf] * 3)
         # Previous action
-        max_action = np.array([1.01] * 6)
-        min_action = -np.array([1.01] * 6)
+        max_action = max_joint_positions
+        min_action = min_joint_positions
         # Definition of environment observation_space
         max_obs = np.concatenate(
             (
@@ -335,10 +347,10 @@ class EndEffectorPositioningUR(URBaseEnv):
 
         # Update joint positions in rs_state
         rs_state.update(self.joint_positions)
-        self.ee_target_pose = ee_target_pose
+        self.ee_target_pose = np.array(ee_target_pose)
 
         # Set target End Effector pose
-        if self.ee_target_pose:
+        if self.ee_target_pose.any():
             assert len(self.ee_target_pose) == 6
         else:
             self.ee_target_pose = self._get_target_pose()
@@ -502,16 +514,16 @@ class EndEffectorPositioningUR(URBaseEnv):
 
 
 class EndEffectorPositioningURSim(EndEffectorPositioningUR, Simulation):
-    cmd = "roslaunch ur_robot_server ur_robot_server.launch \
+    cmd = "ros2 launch ur_robot_server ur_robot_server.launch.py \
         world_name:=tabletop_sphere50_no_collision.world \
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.1 \
-        action_cycle_rate:=10 \
+        action_cycle_rate:=10.0 \
         rviz_gui:=false \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1object \
-        n_objects:=1.0 \
+        n_objects:=1 \
         object_0_model_name:=sphere50_no_collision \
         object_0_frame:=target"
 
@@ -536,4 +548,4 @@ class EndEffectorPositioningURSim(EndEffectorPositioningUR, Simulation):
 class EndEffectorPositioningURRob(EndEffectorPositioningUR):
     real_robot = True
 
-# roslaunch ur_robot_server ur_robot_server.launch ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20 objects_controller:=true rs_mode:=1object n_objects:=1.0 object_0_frame:=target
+# ros2 launch ur_robot_server ur_robot_server.launch.py ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20.0 objects_controller:=true rs_mode:=1object n_objects:=1 object_0_frame:=target

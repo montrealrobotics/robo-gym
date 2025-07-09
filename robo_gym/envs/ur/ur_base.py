@@ -52,8 +52,8 @@ class URBaseEnv2(ManipulatorBaseEnv):
 
     def get_launch_cmd(self) -> str:
         # TODO make string composition more dynamic
-        return f"roslaunch ur_robot_server ur_robot_server.launch \
-        rviz_gui:={self._config.get(self.KW_RVIZ_GUI_FLAG, True)} \
+        return f"ros2 launch ur_robot_server ur_robot_server.launch.py \
+        rviz_gui:={self._config.get(self.KW_RVIZ_GUI_FLAG, False)} \
         gazebo_gui:={self._config.get(self.KW_GAZEBO_GUI_FLAG, True)} \
         world_name:=empty.world \
         reference_frame:=base_link \

@@ -38,7 +38,7 @@ class InterbotixABaseEnv(gym.Env):
     max_episode_steps = 100
 
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_forearm_roll=False,
-                 fix_wrist_angle=False, fix_wrist_rotate=False, robot_model='rx150', rs_state_to_info=True, **kwargs):
+                 fix_wrist_angle=False, fix_wrist_rotate=False, robot_model='rx150', rs_state_to_info=True, normalize_joint_values=False, **kwargs):
 
         self.interbotix = interbotix_utils.InterbotixArm(model=robot_model)
         if self.interbotix.dof == 4:
@@ -60,6 +60,7 @@ class InterbotixABaseEnv(gym.Env):
                                         'wrist_rotate_joint_velocity']
 
         self.fixed_joints = []
+        self.normalize_joint_values = normalize_joint_values
 
         self.elapsed_steps = 0
 
@@ -191,8 +192,10 @@ class InterbotixABaseEnv(gym.Env):
         
         joint_positions = np.array([joint_positions_dict.get(joint_pos) for joint_pos in joint_pos_names])
 
-        joints_position_norm = self.interbotix.normalize_joint_values(joints=joint_positions)
-
+        if self.normalize_joint_values:
+            joints_position_norm = self.interbotix.normalize_joint_values(joints=joint_positions)
+        else:
+            joints_position_norm = joint_positions
         temp = []
         for joint in range(len(self.fixed_joints)):
             if joint in fixed_joint_indices:
@@ -434,17 +437,25 @@ class InterbotixABaseEnv(gym.Env):
         dof = self.interbotix.dof
         pos_tolerance = np.full(dof, 0.1)
 
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(dof, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(dof, -1.0), pos_tolerance)
-        # Joint velocities range 
-        max_joint_velocities = np.array([np.inf] * dof)
-        min_joint_velocities = -np.array([np.inf] * dof)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(dof, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(dof, -1.0), pos_tolerance)
+            # Joint velocities range
+            max_joint_velocities = np.array([np.inf] * dof)
+            min_joint_velocities = -np.array([np.inf] * dof)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.interbotix.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.interbotix.min_joint_positions, pos_tolerance)
+            max_joint_velocities = self.interbotix.max_joint_velocities
+            min_joint_velocities = self.interbotix.min_joint_velocities
+
         # Definition of environment observation_space
         max_obs = np.concatenate((max_joint_positions, max_joint_velocities))
         min_obs = np.concatenate((min_joint_positions, min_joint_velocities))
 
-        return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float32)
+        return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float64)
 
     def _get_action_space(self) -> gym.spaces.Box:
         """Get environment action space.
@@ -465,16 +476,29 @@ class InterbotixABaseEnv(gym.Env):
                  self.fix_wrist_rotate])
 
         num_control_joints = len(self.fixed_joints) - sum(self.fixed_joints)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1]
+            low = np.full((num_control_joints), -1.0)
+            high = np.full((num_control_joints), 1.0)
+        else:
+            # Use actual joint limits for controllable joints only
+            # Get the limits for non-fixed joints
+            controllable_joint_indices = [i for i, fixed in enumerate(self.fixed_joints) if not fixed]
+            low = self.interbotix.min_joint_positions[controllable_joint_indices]
+            high = self.interbotix.max_joint_positions[controllable_joint_indices]
 
-        return gym.spaces.Box(low=np.full(num_control_joints, -1.0), high=np.full(num_control_joints, 1.0),
-                              dtype=np.float32)
+        return gym.spaces.Box(
+            low=low,
+            high=high,
+            dtype=np.float64,
+        )
 
 
 class EmptyEnvironmentInterbotixASim(InterbotixABaseEnv, Simulation):
-    cmd = "roslaunch interbotix_arm_robot_server interbotix_arm_robot_server.launch \
+    cmd = "ros2 launch interbotix_arm_robot_server interbotix_arm_robot_server.launch.py \
         world_name:=empty.world \
         max_velocity_scale_factor:=0.2 \
-        action_cycle_rate:=20 \
+        action_cycle_rate:=20.0 \
         rviz_gui:=false \
         gazebo_gui:=true \
         rs_mode:=only_robot"
@@ -488,5 +512,5 @@ class EmptyEnvironmentInterbotixASim(InterbotixABaseEnv, Simulation):
 class EmptyEnvironmentInterbotixARob(InterbotixABaseEnv):
     real_robot = True
 
-# roslaunch interbotix_arm_robot_server interbotix_arm_real_robot_server.launch  gui:=true reference_frame:=base
-# max_velocity_scale_factor:=0.2 action_cycle_rate:=20 rs_mode:=moving
+# ros2 launch interbotix_arm_robot_server interbotix_arm_real_robot_server.launch.py  gui:=true reference_frame:=base
+# max_velocity_scale_factor:=0.2 action_cycle_rate:=20 rs_mode:=only_robot

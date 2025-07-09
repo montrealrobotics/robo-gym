@@ -9,11 +9,13 @@ from robo_gym.utils.exceptions import InvalidStateError, RobotServerError, Inval
 import robo_gym_server_modules.robot_server.client as rs_client
 from robo_gym_server_modules.robot_server.grpc_msgs.python import robot_server_pb2
 from robo_gym.envs.simulation_wrapper import Simulation
-
+from robo_gym.utils.camera import RoboGymCamera
 # waist, shoulder, elbow, forearm_roll, wrist_angle, wrist_rotate
 JOINT_POSITIONS_6DOF = [0.0757, 0.0074, 0.0122, -0.00011, 0.0058, -0.00076]
 JOINT_POSITIONS_5DOF = [0.1022, 0.0297, -0.00017, 0.00595, 0]
 JOINT_POSITIONS_4DOF = [0.1056, 0.0913, 0.00178, 0.0008]
+
+IMAGE_SHAPE = [120, 160, 3]
 
 
 class InterbotixRBaseEnv(gym.Env):
@@ -32,7 +34,7 @@ class InterbotixRBaseEnv(gym.Env):
     real_robot = False
     max_episode_steps = 100
 
-    def __init__(self, rs_address=None, robot_model='locobot_wz250s', rs_state_to_info=True, **kwargs):
+    def __init__(self, rs_address=None, robot_model='locobot_wz250s', rs_state_to_info=True, with_camera=False, **kwargs):
 
         arm_model = robot_model.split('_')[1]
         self.interbotix = interbotix_utils.InterbotixArm(model=arm_model)
@@ -61,6 +63,10 @@ class InterbotixRBaseEnv(gym.Env):
         self.base_joint_wheel_vel_list = ['right_wheel_joint_velocity', 'left_wheel_joint_velocity']
 
         self.elapsed_steps = 0
+        self.camera = with_camera
+        if self.camera:
+            self.camera_config = RoboGymCamera(name='camera', image_shape=IMAGE_SHAPE,
+                                        image_mode='temporal', context_size=3, num_cameras=1)
 
         self.rs_state_to_info = rs_state_to_info
 
@@ -119,8 +125,9 @@ class InterbotixRBaseEnv(gym.Env):
         self.elapsed_steps = 0
 
         # Initialize environment state
-        state_len = self.observation_space.shape[0]
-        state = np.zeros(state_len)
+        state_len = self.observation_space['state'].shape[0]
+        state = {}
+        state['state'] = np.zeros(state_len)
         rs_state = dict.fromkeys(self.get_robot_server_composition(state=False), 0.0)
 
         # Set initial robot joint goals
@@ -137,16 +144,17 @@ class InterbotixRBaseEnv(gym.Env):
             raise RobotServerError("set_state")
 
         # Get Robot Server state
-        rs_state = self.client.get_state_msg().state_dict
+        rs_state_all = self.client.get_state_msg()
+        rs_state = rs_state_all.state_dict
 
         # Check if the length and keys of the Robot Server state received is correct
         self._check_rs_state_keys(rs_state)
 
         # Convert the initial state from Robot Server format to environment format
-        state = self._robot_server_state_to_env_state(rs_state)
+        state['state'] = self._robot_server_state_to_env_state(rs_state)
 
         # Check if the environment state is contained in the observation space
-        if not self.observation_space.contains(state):
+        if not self.camera and not self.observation_space['state'].contains(state['state']):
             raise InvalidStateError()
 
         # Check if current position is in the range of the initial joint positions
@@ -157,8 +165,13 @@ class InterbotixRBaseEnv(gym.Env):
                     raise InvalidStateError('Reset joint positions are not within defined range')
 
         self.rs_state = rs_state
+        if self.camera:
+             state['camera'] = self.camera_config.process_camera_images(rs_state_all.string_params)
 
-        return state, {}
+        if self.camera:
+            return state, {}
+        else:
+            return state['state'], {}
     
     def reward(self, rs_state, action) -> Tuple[float, bool, dict]:
         done = False
@@ -192,6 +205,7 @@ class InterbotixRBaseEnv(gym.Env):
 
         rs_action = []
         self.elapsed_steps += 1
+        state = {}
 
         action = action.astype(np.float32)
 
@@ -203,26 +217,36 @@ class InterbotixRBaseEnv(gym.Env):
         rs_action = self.env_action_to_rs_action(action)
 
         # Send action to Robot Server and get state
-        rs_state = self.client.send_action_get_state(rs_action.tolist()).state_dict
+        rs_state_all = self.client.send_action_get_state(rs_action.tolist())
+        rs_state = rs_state_all.state_dict
+
         self._check_rs_state_keys(rs_state)
 
         # Convert the state from Robot Server format to environment format
-        state = self._robot_server_state_to_env_state(rs_state)
+        state['state'] = self._robot_server_state_to_env_state(rs_state)
+
+        if self.camera:
+             state['camera'] = self.camera_config.process_camera_images(rs_state_all.string_params)
+
+            # cv2.imshow('Decoded Image', image)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
 
         # Check if the environment state is contained in the observation space
-        if not self.observation_space.contains(state):
+        if not self.camera and not self.observation_space['state'].contains(state['state']):
             raise InvalidStateError()
 
         self.rs_state = rs_state
 
-        # Assign reward
         reward = 0
         done = False
         reward, done, info = self.reward(rs_state=rs_state, action=action)
         if self.rs_state_to_info:
             info['rs_state'] = self.rs_state
-
-        return state, reward, done, False, info
+        if self.camera:
+            return state, reward, done, False, info
+        else:
+            return state['state'], reward, done, False, info
 
     def get_rs_state(self):
         return self.rs_state
@@ -284,7 +308,7 @@ class InterbotixRBaseEnv(gym.Env):
                 rs_state_keys += ['base_velocity_x', 'base_velocity_z']
 
         return rs_state_keys
-    
+
     def _set_joint_goals(self, joint_positions, base_velocity) -> None:
         """Set desired robot joint positions/velocities with standard indexing."""
         # Set initial robot joint goals
@@ -315,7 +339,6 @@ class InterbotixRBaseEnv(gym.Env):
             numpy.array: State in environment format.
 
         """
-        # Joint positions 
         joint_positions = []
         joint_positions_keys = self.joint_list + self.base_joint_wheel_list
 
@@ -323,7 +346,6 @@ class InterbotixRBaseEnv(gym.Env):
             joint_positions.append(rs_state[position])
         joint_positions = np.array(joint_positions)
 
-        # Joint Velocities
         joint_velocities = [] 
         joint_velocities_keys = self.joint_velocity_list + self.base_joint_wheel_vel_list
 
@@ -341,9 +363,9 @@ class InterbotixRBaseEnv(gym.Env):
         # Compose environment state
         state = np.concatenate((joint_positions, joint_velocities, base_pose))
 
-        return state.astype(np.float32)
+        return state.astype(np.float64)
     
-    def _get_observation_space(self) -> gym.spaces.Box:
+    def _get_observation_space(self) -> gym.spaces.Dict:
         """Get environment observation space.
 
         Returns:
@@ -366,14 +388,28 @@ class InterbotixRBaseEnv(gym.Env):
         
         max_pose = np.full(7, np.inf)
         min_pose = np.full(7, -np.inf)
-        
+
         # Definition of environment observation_space
         max_obs = np.concatenate((max_joint_positions, max_wheel_positions, max_joint_velocities, 
                                   max_wheel_velocity, max_pose))
         min_obs = np.concatenate((min_joint_positions, min_wheel_positions, min_joint_velocities, 
                                   min_wheel_velocity, min_pose))
+        base_obs_space = gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float64)
 
-        return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float32)
+        if self.camera:
+            camera_obs_shape = self.camera_config.observation_space
+            return gym.spaces.Dict({
+                'state': base_obs_space,
+                'camera': gym.spaces.Box(
+                    low=0, high=255,
+                    shape=camera_obs_shape,
+                    dtype=np.uint8
+                )
+            })
+        else:
+            return gym.spaces.Dict({
+                'state': base_obs_space,
+            })
     
     def _get_action_space(self) -> gym.spaces.Box:
         """Get environment action space.
@@ -391,14 +427,14 @@ class InterbotixRBaseEnv(gym.Env):
         max_action = np.concatenate((max_joint_positions, max_base_velocity))
         min_action = np.concatenate((min_joint_positions, min_base_velocity))
 
-        return gym.spaces.Box(low=min_action, high=max_action, dtype=np.float32)
+        return gym.spaces.Box(low=min_action, high=max_action, dtype=np.float64)
 
 
 class EmptyEnvironmentInterbotixRSim(InterbotixRBaseEnv, Simulation):
-    cmd = "roslaunch interbotix_rover_robot_server interbotix_rover_robot_server.launch \
+    cmd = "ros2 launch interbotix_rover_robot_server interbotix_rover_robot_server.launch.py \
         world_name:=empty.world \
         reference_frame:=base_link \
-        action_cycle_rate:=20 \
+        action_cycle_rate:=20.0 \
         rviz_gui:=false \
         gazebo_gui:=true"
 
@@ -411,5 +447,5 @@ class EmptyEnvironmentInterbotixRSim(InterbotixRBaseEnv, Simulation):
 class EmptyEnvironmentInterbotixRRob(InterbotixRBaseEnv):
     real_robot = True
 
-# roslaunch interbotix_rover_robot_server interbotix_rover_real_robot_server.launch gui:=true reference_frame:=base
-# action_cycle_rate:=20
+# ros2 launch interbotix_rover_robot_server interbotix_rover_robot_server.launch.py gui:=true reference_frame:=base
+# action_cycle_rate:=20.0

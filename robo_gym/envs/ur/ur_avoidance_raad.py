@@ -55,6 +55,7 @@ class AvoidanceRaad2022UR(URBaseAvoidanceEnv):
         ur_model="ur5",
         include_polar_to_elbow=True,
         rs_state_to_info=True,
+        normalize_joint_values=False,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -67,6 +68,7 @@ class AvoidanceRaad2022UR(URBaseAvoidanceEnv):
             fix_wrist_3,
             ur_model,
             include_polar_to_elbow,
+            normalize_joint_values,
         )
 
         file_name = "trajectory_raad_2022.json"
@@ -299,14 +301,22 @@ class AvoidanceRaad2022UR(URBaseAvoidanceEnv):
 
         # Joint position range tolerance
         pos_tolerance = np.full(6, 0.1)
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+            max_delta_start_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_delta_start_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.ur.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.ur.min_joint_positions, pos_tolerance)
+            joint_range = self.ur.max_joint_positions - self.ur.min_joint_positions
+            max_delta_start_positions = np.add(joint_range, pos_tolerance)
+            min_delta_start_positions = np.subtract(-joint_range, pos_tolerance)
+
         # Target coordinates range
         target_range = np.full(3, np.inf)
-
-        max_delta_start_positions = np.add(np.full(6, 1.0), pos_tolerance)
-        min_delta_start_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
 
         # Target coordinates (with respect to forearm frame) range
         target_forearm_range = np.full(3, np.inf)
@@ -386,16 +396,16 @@ class AvoidanceRaad2022UR(URBaseAvoidanceEnv):
 
 
 class AvoidanceRaad2022URSim(AvoidanceRaad2022UR, Simulation):
-    cmd = "roslaunch ur_robot_server ur_robot_server.launch \
+    cmd = "ros2 launch ur_robot_server ur_robot_server.launch.py \
         world_name:=tabletop_sphere50.world \
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.2 \
-        action_cycle_rate:=20 \
+        action_cycle_rate:=20.0 \
         rviz_gui:=false \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1moving2points \
-        n_objects:=1.0 \
+        n_objects:=1 \
         object_0_model_name:=sphere50 \
         object_0_frame:=target"
 
@@ -421,7 +431,7 @@ class AvoidanceRaad2022URRob(AvoidanceRaad2022UR):
     real_robot = True
 
 
-# roslaunch ur_robot_server ur_robot_server.launch ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20 rs_mode:=1moving2points n_objects:=1.0 object_0_frame:=target
+# ros2 launch ur_robot_server ur_robot_server.launch.py ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20.0 rs_mode:=1moving2points n_objects:=1 object_0_frame:=target
 
 
 """
@@ -477,16 +487,16 @@ class AvoidanceRaad2022TestUR(AvoidanceRaad2022UR):
 
 
 class AvoidanceRaad2022TestURSim(AvoidanceRaad2022TestUR, Simulation):
-    cmd = "roslaunch ur_robot_server ur_robot_server.launch \
+    cmd = "ros2 launch ur_robot_server ur_robot_server.launch.py \
         world_name:=tabletop_sphere50.world \
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.2 \
-        action_cycle_rate:=20 \
+        action_cycle_rate:=20.0 \
         rviz_gui:=false \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1moving2points \
-        n_objects:=1.0 \
+        n_objects:=1 \
         object_trajectory_file_name:=splines_ur5 \
         object_0_model_name:=sphere50 \
         object_0_frame:=target"
@@ -513,4 +523,4 @@ class AvoidanceRaad2022TestURRob(AvoidanceRaad2022TestUR):
     real_robot = True
 
 
-# roslaunch ur_robot_server ur_robot_server.launch ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20 rs_mode:=1moving2points n_objects:=1.0 object_0_frame:=target
+# ros2 launch ur_robot_server ur_robot_server.launch.py ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20.0 rs_mode:=1moving2points n_objects:=1 object_0_frame:=target

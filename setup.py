@@ -26,6 +26,7 @@ setuptools.setup(
         "numpy",
         "scipy",
         "pyyaml",
+        "opencv-python",
         'modern_robotics',
     ],
     python_requires=">=3.8",

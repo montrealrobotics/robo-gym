@@ -40,10 +40,10 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
     """
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_forearm_roll=False,
                  fix_wrist_angle=False, fix_wrist_rotate=True, robot_model='rx150', include_polar_to_elbow=False,
-                 rs_state_to_info=True, **kwargs):
+                 rs_state_to_info=True, normalize_joint_values=False, **kwargs):
         self.include_polar_to_elbow = include_polar_to_elbow
         super().__init__(rs_address, fix_base, fix_shoulder, fix_elbow, fix_forearm_roll, fix_wrist_angle,
-                         fix_wrist_rotate, robot_model)
+                         fix_wrist_rotate, robot_model, normalize_joint_values)
         self.elapsed_steps = 0
         if self.interbotix.dof == 4:
             self.joint_positions_list = JOINT_POSITIONS_4DOF
@@ -241,9 +241,20 @@ class InterbotixABaseAvoidanceEnv(InterbotixABaseEnv):
         """
         # Joint position range tolerance
         pos_tolerance = np.full(self.interbotix.dof, 0.1)
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(self.interbotix.dof, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(self.interbotix.dof, -1.0), pos_tolerance)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(self.interbotix.dof, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(self.interbotix.dof, -1.0), pos_tolerance)
+            max_delta_start_positions = np.add(np.full(self.interbotix.dof, 1.0), pos_tolerance)
+            min_delta_start_positions = np.subtract(np.full(self.interbotix.dof, -1.0), pos_tolerance)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.interbotix.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.interbotix.min_joint_positions, pos_tolerance)
+            joint_range = self.interbotix.max_joint_positions - self.interbotix.min_joint_positions
+            max_delta_start_positions = np.add(joint_range, pos_tolerance)
+            min_delta_start_positions = np.subtract(-joint_range, pos_tolerance)
+
         # Target coordinates range
         target_range = np.full(3, np.inf)
         

@@ -51,6 +51,7 @@ class URBaseAvoidanceEnv(URBaseEnv):
         ur_model="ur5",
         include_polar_to_elbow=False,
         rs_state_to_info=True,
+        normalize_joint_values=False,
         **kwargs,
     ):
         self.include_polar_to_elbow = include_polar_to_elbow
@@ -63,6 +64,7 @@ class URBaseAvoidanceEnv(URBaseEnv):
             fix_wrist_2,
             fix_wrist_3,
             ur_model,
+            normalize_joint_values,
         )
 
     def _set_initial_robot_server_state(
@@ -300,13 +302,21 @@ class URBaseAvoidanceEnv(URBaseEnv):
         # Joint position range tolerance
         pos_tolerance = np.full(6, 0.1)
         # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
-        # Target coordinates range
-        target_range = np.full(3, np.inf)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+            max_delta_start_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_delta_start_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.ur.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.ur.min_joint_positions, pos_tolerance)
+            joint_range = self.ur.max_joint_positions - self.ur.min_joint_positions
+            max_delta_start_positions = np.add(joint_range, pos_tolerance)
+            min_delta_start_positions = np.subtract(-joint_range, pos_tolerance)
 
-        max_delta_start_positions = np.add(np.full(6, 1.0), pos_tolerance)
-        min_delta_start_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+        target_range = np.full(3, np.inf)
 
         # Definition of environment observation_space
         if self.include_polar_to_elbow:

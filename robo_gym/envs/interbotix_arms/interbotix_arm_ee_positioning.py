@@ -42,9 +42,9 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
     """
     def __init__(self, rs_address=None, fix_base=False, fix_shoulder=False, fix_elbow=False, fix_forearm_roll=False,
-                 fix_wrist_rotate=False, fix_wrist_angle=False, robot_model='rx150', rs_state_to_info=True, **kwargs):
+                 fix_wrist_rotate=False, fix_wrist_angle=False, robot_model='rx150', rs_state_to_info=True, normalize_joint_values=False, **kwargs):
         super().__init__(rs_address, fix_base, fix_shoulder, fix_elbow, fix_forearm_roll, fix_wrist_angle,
-                         fix_wrist_rotate, robot_model, rs_state_to_info)
+                         fix_wrist_rotate, robot_model, rs_state_to_info, normalize_joint_values)
 
         self.successful_ending = False
         self.last_position = np.zeros(self.interbotix.dof)
@@ -70,14 +70,23 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
         """
         # Joint position range tolerance
         pos_tolerance = np.full(self.interbotix.dof, 0.1)
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(self.interbotix.dof, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(self.interbotix.dof, -1.0), pos_tolerance)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+            # Joint velocities range
+            max_joint_velocities = np.array([np.inf] * 6)
+            min_joint_velocities = -np.array([np.inf] * 6)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.interbotix.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.interbotix.min_joint_positions, pos_tolerance)
+            max_joint_velocities = self.interbotix.max_joint_velocities
+            min_joint_velocities = self.interbotix.min_joint_velocities
+
         # Target coordinates range
         target_range = np.full(3, np.inf)
-        # Joint velocities range 
-        max_joint_velocities = np.array([np.inf] * self.interbotix.dof)
-        min_joint_velocities = - np.array([np.inf] * self.interbotix.dof)
+
         # Cartesian coords of the target location
         max_target_coord = np.array([np.inf] * 3)
         min_target_coord = - np.array([np.inf] * 3)
@@ -321,10 +330,10 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
         # Update joint positions in rs_state
         rs_state.update(self.joint_positions)
-        self.ee_target_pose = ee_target_pose
+        self.ee_target_pose = np.array(ee_target_pose)
 
         # Set target End Effector pose
-        if self.ee_target_pose:
+        if self.ee_target_pose.any():
             assert len(self.ee_target_pose) == 6
         else:
             self.ee_target_pose = self._get_target_pose()
@@ -452,16 +461,16 @@ class EndEffectorPositioningInterbotix(InterbotixABaseEnv):
 
         
 class EndEffectorPositioningInterbotixASim(EndEffectorPositioningInterbotix, Simulation):
-    cmd = "roslaunch interbotix_arm_robot_server interbotix_arm_robot_server.launch \
+    cmd = "ros2 launch interbotix_arm_robot_server interbotix_arm_robot_server.launch.py \
         world_name:=tabletop_sphere50_no_collision.world \
         max_velocity_scale_factor:=0.1 \
-        action_cycle_rate:=10 \
+        action_cycle_rate:=10.0 \
         rviz_gui:=false \
         gui:=true \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1object \
-        n_objects:=1.0 \
+        n_objects:=1 \
         object_0_model_name:=sphere50_no_collision \
         object_0_frame:=target"
 
@@ -474,4 +483,4 @@ class EndEffectorPositioningInterbotixASim(EndEffectorPositioningInterbotix, Sim
 class EndEffectorPositioningInterbotixARob(EndEffectorPositioningInterbotix):
     real_robot = True
 
-# roslaunch interbotix_arm_robot_server interbotix_arm_robot_server.launch robot_model:=rx150 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20 objects_controller:=true rs_mode:=1object n_objects:=1.0 object_0_frame:=target
+# ros2 launch interbotix_arm_robot_server interbotix_arm_robot_server.launch.py robot_model:=rx150 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20.0 objects_controller:=true rs_mode:=1object n_objects:=1 object_0_frame:=target

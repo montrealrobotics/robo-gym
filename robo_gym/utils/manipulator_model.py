@@ -71,6 +71,15 @@ class ManipulatorModel:
         # Workspace parameters
         self.ws_r = p["workspace_area"]["r"]
         self.ws_min_r = p["workspace_area"]["min_r"]
+        self.ws_limited = p["workspace_area"]["limited"]
+        self.ws_width = p["workspace_area"]["width"]
+        self.ws_height = p["workspace_area"]["height"]
+        self.ws_depth = p["workspace_area"]["depth"]
+        self.ws_gripper_length = p["workspace_area"]["gripper_length"]
+        self.x_range = [0, 0]
+        self.y_range = [0, 0]
+        self.z_range = [0, 0]
+        self.origin_offset = p["workspace_area"]["origin_offset"]
 
     def get_max_joint_positions(self) -> NDArray:
 

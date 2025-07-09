@@ -51,8 +51,8 @@ class IsaacReachUR(IsaacReachEnv):
     def get_launch_cmd(self) -> str:
         # TODO make string composition more dynamic
         # TODO duplicated from EndEffectorPositioning2UR
-        return f"roslaunch ur_robot_server ur_robot_server.launch \
-            rviz_gui:={self._config.get(self.KW_RVIZ_GUI_FLAG, True)} \
+        return f"ros2 launch ur_robot_server ur_robot_server.launch.py \
+            rviz_gui:={self._config.get(self.KW_RVIZ_GUI_FLAG, False)} \
             gazebo_gui:={self._config.get(self.KW_GAZEBO_GUI_FLAG, True)} \
             world_name:=isaactabletop_sphere50_no_collision.world \
             reference_frame:=base_link \
@@ -61,7 +61,7 @@ class IsaacReachUR(IsaacReachEnv):
             action_cycle_rate:={self.action_rate} \
             objects_controller:=true \
             rs_mode:=1object \
-            n_objects:=1.0 \
+            n_objects:=1 \
             object_0_model_name:=sphere50_no_collision \
             object_0_frame:=target \
             z:=0.0 \

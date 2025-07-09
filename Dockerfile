@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ENV ROBOGYM_WS=/robogym_ws
 
@@ -11,6 +11,17 @@ RUN apt-get update && \
     python3.10-venv \
     python3.10-dev \
     curl \
+    vim \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libxcb-xinerama0 \
+    libxcb-xinput0 \
+    libxcb-xkb1 \
+    libqt5gui5 \
+    libqt5core5a \
+    libqt5dbus5 \
+    libqt5widgets5 \
+    libxcb-keysyms1 \
     software-properties-common \
     python3-pip \
     python3-dev \

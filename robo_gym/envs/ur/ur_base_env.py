@@ -55,10 +55,12 @@ class URBaseEnv(gym.Env):
         fix_wrist_3=True,
         ur_model="ur5",
         rs_state_to_info=True,
+        normalize_joint_values=False,
         **kwargs,
     ):
         self.ur = ur_utils.UR(model_key=ur_model)
         self.elapsed_steps = 0
+        self.normalize_joint_values = normalize_joint_values
 
         self.rs_state_to_info = rs_state_to_info
 
@@ -68,7 +70,7 @@ class URBaseEnv(gym.Env):
         self.fix_wrist_1 = fix_wrist_1
         self.fix_wrist_2 = fix_wrist_2
         self.fix_wrist_3 = fix_wrist_3
-        self.ee_target_pose = []
+        self.ee_target_pose = np.array([])
 
         self.observation_space = self._get_observation_space()
         self.action_space = self._get_action_space()
@@ -208,7 +210,10 @@ class URBaseEnv(gym.Env):
             [joint_positions_dict.get(joint_pos) for joint_pos in joint_pos_names]
         )
 
-        joints_position_norm = self.ur.normalize_joint_values(joints=joint_positions)
+        if self.normalize_joint_values:
+            joints_position_norm = self.ur.normalize_joint_values(joints=joint_positions)
+        else:
+            joints_position_norm = joint_positions
 
         temp = []
         for joint in range(len(fixed_joints)):
@@ -311,13 +316,14 @@ class URBaseEnv(gym.Env):
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
 
-        rs_state['object_0_to_ref_translation_x'] = self.ee_target_pose[0]
-        rs_state['object_0_to_ref_translation_y'] = self.ee_target_pose[0]
-        rs_state['object_0_to_ref_translation_z'] = self.ee_target_pose[0]
-        rs_state['object_0_to_ref_rotation_x'] = 0
-        rs_state['object_0_to_ref_rotation_y'] = 0
-        rs_state['object_0_to_ref_rotation_z'] = 0
-        rs_state['object_0_to_ref_rotation_w'] = 1
+        if self.ee_target_pose.any():
+            rs_state['ee_to_ref_translation_x'] = self.ee_target_pose[0]
+            rs_state['ee_to_ref_translation_y'] = self.ee_target_pose[0]
+            rs_state['ee_to_ref_translation_z'] = self.ee_target_pose[0]
+            rs_state['ee_to_ref_rotation_x'] = 0
+            rs_state['ee_to_ref_rotation_y'] = 0
+            rs_state['ee_to_ref_rotation_z'] = 0
+            rs_state['ee_to_ref_rotation_w'] = 1
 
         if not len(keys) == len(rs_state.keys()):
             raise InvalidStateError(
@@ -411,18 +417,25 @@ class URBaseEnv(gym.Env):
         """
         # Joint position range tolerance
         pos_tolerance = np.full(6, 0.1)
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1] with tolerance
+            max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
+            min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
+            # Joint velocities range
+            max_joint_velocities = np.array([np.inf] * 6)
+            min_joint_velocities = -np.array([np.inf] * 6)
+        else:
+            # Use actual joint limits with tolerance
+            max_joint_positions = np.add(self.ur.max_joint_positions, pos_tolerance)
+            min_joint_positions = np.subtract(self.ur.min_joint_positions, pos_tolerance)
+            max_joint_velocities = self.ur.max_joint_velocities
+            min_joint_velocities = self.ur.min_joint_velocities
 
-        # Joint positions range used to determine if there is an error in the sensor readings
-        max_joint_positions = np.add(np.full(6, 1.0), pos_tolerance)
-        min_joint_positions = np.subtract(np.full(6, -1.0), pos_tolerance)
-        # Joint velocities range
-        max_joint_velocities = np.array([np.inf] * 6)
-        min_joint_velocities = -np.array([np.inf] * 6)
         # Definition of environment observation_space
         max_obs = np.concatenate((max_joint_positions, max_joint_velocities))
         min_obs = np.concatenate((min_joint_positions, min_joint_velocities))
 
-        return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float32)
+        return gym.spaces.Box(low=min_obs, high=max_obs, dtype=np.float64)
 
     def _get_action_space(self) -> gym.spaces.Box:
         """Get environment action space.
@@ -441,20 +454,31 @@ class URBaseEnv(gym.Env):
         ]
         num_control_joints = len(fixed_joints) - sum(fixed_joints)
 
+        if self.normalize_joint_values:
+            # Use normalized range [-1, 1]
+            low = np.full((num_control_joints), -1.0)
+            high = np.full((num_control_joints), 1.0)
+        else:
+            # Use actual joint limits for controllable joints only
+            # Get the limits for non-fixed joints
+            controllable_joint_indices = [i for i, fixed in enumerate(fixed_joints) if not fixed]
+            low = self.ur.min_joint_positions[controllable_joint_indices]
+            high = self.ur.max_joint_positions[controllable_joint_indices]
+
         return gym.spaces.Box(
-            low=np.full((num_control_joints), -1.0),
-            high=np.full((num_control_joints), 1.0),
-            dtype=np.float32,
+            low=low,
+            high=high,
+            dtype=np.float64,
         )
 
 
 class EmptyEnvironmentURSim(URBaseEnv, Simulation):
-    cmd = "roslaunch ur_robot_server ur_robot_server.launch \
+    cmd = "ros2 launch ur_robot_server ur_robot_server.launch.py \
         world_name:=empty.world \
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.2 \
-        action_cycle_rate:=20 \
-        rviz_gui:=true \
+        action_cycle_rate:=20.0 \
+        rviz_gui:=false \
         gazebo_gui:=true \
         rs_mode:=only_robot"
 
@@ -481,4 +505,4 @@ class EmptyEnvironmentURRob(URBaseEnv):
     real_robot = True
 
 
-# roslaunch ur_robot_server ur5_real_robot_server.launch  gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20 rs_mode:=moving
+# ros2 launch ur_robot_server ur5_real_robot_server.launch.py  gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20.0 rs_mode:=only_robot

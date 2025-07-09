@@ -45,30 +45,13 @@ class UR(ManipulatorModel):
                          "wrist_1", "wrist_2", "wrist_3"]
 
         self.number_of_joints = 6
-        
-        # Initialize joint limits attributes
-        self.max_joint_positions = np.zeros(self.number_of_joints)
-        self.min_joint_positions = np.zeros(self.number_of_joints)
-        self.max_joint_velocities = np.zeros(self.number_of_joints)
-        self.min_joint_velocities = np.zeros(self.number_of_joints)
 
     def _swap_base_and_elbow(self, thetas: NDArray) -> NDArray:
         return np.array(
             [thetas[2], thetas[1], thetas[0], thetas[3], thetas[4], thetas[5]]
         )
 
-        # Workspace parameters
-        self.ws_r = p["workspace_area"]["r"]
-        self.ws_min_r = p["workspace_area"]["min_r"]
-        self.ws_limited = p["workspace_area"]["limited"]
-        self.ws_width = p["workspace_area"]["width"]
-        self.ws_height = p["workspace_area"]["height"]
-        self.ws_depth = p["workspace_area"]["depth"]
-        self.ws_gripper_length = p["workspace_area"]["gripper_length"]
-        self.x_range = [0, 0]
-        self.y_range = [0, 0]
-        self.z_range = [0, 0]
-        self.origin_offset = p["workspace_area"]["origin_offset"]
+
 
     def get_max_joint_positions(self):
 

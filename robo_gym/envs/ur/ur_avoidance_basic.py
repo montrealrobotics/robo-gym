@@ -42,6 +42,33 @@ class BasicAvoidanceUR(URBaseAvoidanceEnv):
     """
 
     max_episode_steps = 1000
+    def __init__(
+        self,
+        rs_address=None,
+        fix_base=False,
+        fix_shoulder=False,
+        fix_elbow=False,
+        fix_wrist_1=False,
+        fix_wrist_2=False,
+        fix_wrist_3=True,
+        ur_model="ur5",
+        include_polar_to_elbow=True,
+        rs_state_to_info=True,
+        normalize_joint_values=False,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            rs_address,
+            fix_base,
+            fix_shoulder,
+            fix_elbow,
+            fix_wrist_1,
+            fix_wrist_2,
+            fix_wrist_3,
+            ur_model,
+            include_polar_to_elbow,
+            normalize_joint_values,
+        )
 
     def _set_initial_robot_server_state(
         self, rs_state, fixed_object_position=None
@@ -190,16 +217,16 @@ class BasicAvoidanceUR(URBaseAvoidanceEnv):
 
 
 class BasicAvoidanceURSim(BasicAvoidanceUR, Simulation):
-    cmd = "roslaunch ur_robot_server ur_robot_server.launch \
+    cmd = "ros2 launch ur_robot_server ur_robot_server.launch.py \
         world_name:=tabletop_sphere50.world \
         reference_frame:=base_link \
         max_velocity_scale_factor:=0.2 \
-        action_cycle_rate:=20 \
+        action_cycle_rate:=20.0 \
         rviz_gui:=false \
         gazebo_gui:=true \
         objects_controller:=true \
         rs_mode:=1moving2points \
-        n_objects:=1.0 \
+        n_objects:=1 \
         object_0_model_name:=sphere50 \
         object_0_frame:=target"
 
@@ -225,4 +252,4 @@ class BasicAvoidanceURRob(BasicAvoidanceUR):
     real_robot = True
 
 
-# roslaunch ur_robot_server ur_robot_server.launch ur_model:=ur5 real_robot:=true rviz_gui:=true gui:=true reference_frame:=base max_velocity_scale_factor:=0.2 action_cycle_rate:=20 rs_mode:=moving
+# ros2 launch ur_robot_server ur_robot_server.launch.py world_name:=tabletop_sphere50.world reference_frame:=base_link max_velocity_scale_factor:=0.2 action_cycle_rate:=20.0 rviz_gui:=false gazebo_gui:=true objects_controller:=true rs_mode:=1moving2points n_objects:=1 object_0_model_name:=sphere50 object_0_frame:=target
