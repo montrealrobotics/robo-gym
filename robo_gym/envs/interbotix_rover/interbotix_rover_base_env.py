@@ -35,7 +35,7 @@ class InterbotixRBaseEnv(gym.Env):
     real_robot = False
     max_episode_steps = 100
 
-    def __init__(self, rs_address=None, robot_model='locobot_wz250s', rs_state_to_info=True, with_camera=False, **kwargs):
+    def __init__(self, rs_address=None, robot_model='locobot_wz250s', rs_state_to_info=True, with_camera=False, context_size=1, **kwargs):
 
         arm_model = robot_model.split('_')[1]
         self.interbotix = interbotix_utils.InterbotixArm(model=arm_model)
@@ -65,9 +65,10 @@ class InterbotixRBaseEnv(gym.Env):
 
         self.elapsed_steps = 0
         self.camera = with_camera
+        self.context_size = context_size
         if self.camera:
             self.camera_config = RoboGymCamera(name='camera', image_shape=IMAGE_SHAPE,
-                                        image_mode='temporal', context_size=3, num_cameras=1)
+                                        image_mode='temporal', context_size=self.context_size, num_cameras=1)
 
         self.rs_state_to_info = rs_state_to_info
 
