@@ -13,7 +13,9 @@ from robo_gym.utils.camera import RoboGymCamera
 # waist, shoulder, elbow, forearm_roll, wrist_angle, wrist_rotate
 # JOINT_POSITIONS_6DOF = [0.0757, 0.0074, 0.0122, -0.00011, 0.0058, -0.00076]
 JOINT_POSITIONS_6DOF = [0.003067961661145091, -1.1750292778015137, 1.59, -0.003067961661145091, 0.5077476501464844, 0.1533980816602707]
-JOINT_POSITIONS_5DOF = [0.1022, 0.0297, -0.00017, 0.00595, 0]
+# JOINT_POSITIONS_5DOF = [0.1022, 0.0297, -0.00017, 0.00595, 0.0]
+JOINT_POSITIONS_5DOF = [0.003, -1.3683, 1.650, 0.566, 0.0536]
+
 JOINT_POSITIONS_4DOF = [0.1056, 0.0913, 0.00178, 0.0008]
 
 IMAGE_SHAPE = [120, 160, 3]
@@ -323,7 +325,6 @@ class InterbotixRBaseEnv(gym.Env):
         
     def _check_rs_state_keys(self, rs_state) -> None:
         keys = self.get_robot_server_composition()
-        
         if not len(keys) == len(rs_state.keys()):
             raise InvalidStateError("Robot Server state keys to not match. Different lengths.")
 
