@@ -82,9 +82,7 @@ connected via network.
 You can perform a minimal install of robo-gym with:
 
 ```bash
-git clone https://github.com/montrealrobotics/robo-gym.git
-cd robo-gym
-pip install -e .
+pip3 install git+https://github.com/montrealrobotics/robo-gym.git
 ```
 If you prefer, you can do a minimal install of the packaged version directly from PyPI:
 
